@@ -1,0 +1,142 @@
+name: OpenWrt x86-64 Official Build
+
+on:
+  schedule:
+    - cron: '0 16 * * *'  # UTC 16:00 = 北京时间 00:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+          df -h /
+
+      - name: Execute DIY Script
+        run: |
+          git clone --depth 1 -b v25.12.1 https://github.com/openwrt/openwrt.git openwrt
+          cd openwrt
+          bash ../diy.sh
+
+      - name: Update Feeds & Install
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Load Custom Config
+        run: |
+          cd openwrt
+          cat >> .config << 'EOFCONFIG'
+          # ======== 目标系统 ========
+          CONFIG_TARGET_x86=y
+          CONFIG_TARGET_x86_64=y
+          CONFIG_TARGET_x86_64_Generic=y
+
+          # ======== 关闭 IPv6 ========
+          CONFIG_PACKAGE_ipv6helper=n
+          CONFIG_PACKAGE_luci-proto-ipv6=n
+          CONFIG_PACKAGE_ip6tables=n
+          CONFIG_PACKAGE_6in4=n
+          CONFIG_PACKAGE_6to4=n
+          CONFIG_PACKAGE_6rd=n
+          CONFIG_PACKAGE_ds-lite=n
+          CONFIG_PACKAGE_ipv6-support=n
+
+          # ======== Dnsmasq 完整版（替换默认版） ========
+          CONFIG_PACKAGE_dnsmasq=n
+          CONFIG_PACKAGE_dnsmasq-full=y
+
+          # ======== LuCI 全中文支持 ========
+          CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-opkg-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
+
+          # ======== OpenClash（含 Meta 内核） ========
+          CONFIG_PACKAGE_luci-app-openclash=y
+          CONFIG_PACKAGE_luci-i18n-openclash-zh-cn=y
+
+          # ======== KMS 激活服务 ========
+          CONFIG_PACKAGE_vlmcsd=y
+          CONFIG_PACKAGE_luci-app-vlmcsd=y
+          CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y
+
+          # ======== ZeroTier 内网穿透 ========
+          CONFIG_PACKAGE_zerotier=y
+          CONFIG_PACKAGE_luci-app-zerotier=y
+          CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y
+
+          # ======== 常用工具 ========
+          CONFIG_PACKAGE_curl=y
+          CONFIG_PACKAGE_wget-ssl=y
+          CONFIG_PACKAGE_htop=y
+          CONFIG_PACKAGE_nano=y
+          CONFIG_package_luci-app-ttyd=y
+          CONFIG_PACKAGE_luci-i18n-ttyd-zh-cn=y
+
+          # ======== 文件传输 ========
+          CONFIG_PACKAGE_vsftpd=y
+          CONFIG_PACKAGE_luci-i18n-vsftpd-zh-cn=y
+          CONFIG_PACKAGE_openssh-sftp-server=y
+
+          # ======== 编译输出格式 ========
+          CONFIG_TARGET_IMAGES_GZIP=y
+          CONFIG_TARGET_IMAGES_VMDK=y
+          EOFCONFIG
+
+      - name: Defconfig
+        run: |
+          cd openwrt
+          make defconfig
+          # 移除 firewall3 源码强制使用 fw4
+          rm -rf package/firewall3/
+
+      - name: Download Packages
+        run: |
+          cd openwrt
+          make download -j$(nproc) || make download -j1 V=s
+
+      - name: Compile Firmware
+        run: |
+          cd openwrt
+          make -j$(nproc) || make -j1 V=s
+
+      - name: Organize Output
+        run: |
+          cd openwrt
+          mkdir -p ../artifact
+          find bin/targets -name "*.img.gz" -exec cp {} ../artifact/ \;
+          find bin/targets -name "*.vmdk" -exec cp {} ../artifact/ \;
+          ls -lh ../artifact/
+
+      - name: Generate Release Info
+        run: |
+          cd openwrt
+          echo "## 固件信息" > ../artifact/Release-Info.md
+          echo "| 项目 | 值 |" >> ../artifact/Release-Info.md
+          echo "|------|-----|" >> ../artifact/Release-Info.md
+          echo "| OpenWrt 版本 | v25.12.1 |" >> ../artifact/Release-Info.md
+          echo "| 编译时间 | $(date '+%Y-%m-%d %H:%M:%S') |" >> ../artifact/Release-Info.md
+          echo "| 编译平台 | GitHub Actions |" >> ../artifact/Release-Info.md
+          echo "| 默认 IP | 192.168.80.80 |" >> ../artifact/Release-Info.md
+          echo "| 密码 | 无（空密码） |" >> ../artifact/Release-Info.md
+          echo "| 主机名 | OpenWrt-25.12 |" >> ../artifact/Release-Info.md
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v25.12.1-$(date '+%Y%m%d')"
+          name: "OpenWrt v25.12.1 $(date '+%Y-%m-%d')"
+          body_path: artifact/Release-Info.md
+          files: artifact/*
