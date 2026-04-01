@@ -4,12 +4,6 @@ on:
   schedule:
     - cron: '0 16 * * *'  # 北京时间 00:00
   workflow_dispatch:
-    inputs:
-      debug_mode:
-        description: '开启详细日志 (V=s)'
-        required: false
-        default: 'false'
-        type: boolean
 
 env:
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
@@ -54,7 +48,7 @@ jobs:
           cp -f ${{ github.workspace }}/scripts/diy.sh .
           bash diy.sh
 
-      - name: 📐 加载并生成最终配置
+      - name: 📐 生成最终配置
         run: |
           cd $WORK_DIR
           cp -f ${{ github.workspace }}/configs/x86_64.config .config
@@ -78,7 +72,6 @@ jobs:
           BIN_DIR=$WORK_DIR/bin/targets/x86/64
           cp $BIN_DIR/openwrt-x86-64-generic-*.img.gz release/ 2>/dev/null || true
           cp $BIN_DIR/openwrt-x86-64-generic-*.vmdk release/ 2>/dev/null || true
-          ls -lh release/
 
       - name: ☁️ 发布至 Releases
         uses: softprops/action-gh-release@v2
@@ -86,10 +79,8 @@ jobs:
           tag_name: v$(TZ='Asia/Shanghai' date '+%Y.%m.%d')-b${{ github.run_number }}
           name: 🛡️ OpenWrt x86-64 官方纯净版
           body: |
-            ## 📦 版本信息
             - **基础版本**: `${{ env.OPENWRT_BRANCH }}`
-            - **编译时长**: `${{ env.DURATION }}` 秒
-            - **默认 IP**: `192.168.80.80`
+            - **默认地址**: `192.168.80.80`
           files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
