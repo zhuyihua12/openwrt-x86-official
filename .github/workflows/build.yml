@@ -1,142 +1,112 @@
-name: OpenWrt x86-64 Official Build
+name: Build OpenWrt x86-64 Firmware
 
 on:
   schedule:
-    - cron: '0 16 * * *'  # UTC 16:00 = 北京时间 00:00
+    - cron: '0 16 * * *'  # 北京时间每日 00:00
   workflow_dispatch:
+    inputs:
+      debug_mode:
+        description: '开启详细日志 (V=s)'
+        required: false
+        default: 'false'
+        type: boolean
 
-permissions:
-  contents: write
+env:
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+  OPENWRT_BRANCH: v25.12.1
+  WORK_DIR: openwrt-src
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
     steps:
-      - name: Checkout
+      - name: 📦 清理工作空间
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/share/llvm
+          sudo docker image prune -a -f
+
+      - name: 📥 拉取项目配置 (含 configs/ 与 scripts/)
         uses: actions/checkout@v4
 
-      - name: Free Disk Space
+      - name: 📥 安装基础依赖
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt-get clean
-          df -h /
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
+          gettext git java-propose-classpath libelf-dev libncurses5-dev libncursesw5-dev \
+          libssl-dev python3 python3-pyelftools python3-setuptools rsync subversion \
+          swig time xsltproc zlib1g-dev p7zip-full jq wget curl unzip
 
-      - name: Execute DIY Script
-        run: |
-          git clone --depth 1 -b v25.12.1 https://github.com/openwrt/openwrt.git openwrt
-          cd openwrt
-          bash ../diy.sh
+      - name: 🐙 克隆 OpenWrt 官方源码
+        run: git clone $OPENWRT_REPO -b $OPENWRT_BRANCH $WORK_DIR
 
-      - name: Update Feeds & Install
+      - name: 🔄 更新 Feeds
         run: |
-          cd openwrt
+          cd $WORK_DIR
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Load Custom Config
+      - name: 📦 注入自定义配置与脚本
         run: |
-          cd openwrt
-          cat >> .config << 'EOFCONFIG'
-          # ======== 目标系统 ========
-          CONFIG_TARGET_x86=y
-          CONFIG_TARGET_x86_64=y
-          CONFIG_TARGET_x86_64_Generic=y
+          cd $WORK_DIR
+          cp -f ${{ github.workspace }}/configs/x86_64.config .config
+          cp -f ${{ github.workspace }}/scripts/diy.sh diy.sh
+          chmod +x diy.sh
 
-          # ======== 关闭 IPv6 ========
-          CONFIG_PACKAGE_ipv6helper=n
-          CONFIG_PACKAGE_luci-proto-ipv6=n
-          CONFIG_PACKAGE_ip6tables=n
-          CONFIG_PACKAGE_6in4=n
-          CONFIG_PACKAGE_6to4=n
-          CONFIG_PACKAGE_6rd=n
-          CONFIG_PACKAGE_ds-lite=n
-          CONFIG_PACKAGE_ipv6-support=n
+      - name: 🛠️ 执行预处理 (diy.sh)
+        run: cd $WORK_DIR &&bash diy.sh
 
-          # ======== Dnsmasq 完整版（替换默认版） ========
-          CONFIG_PACKAGE_dnsmasq=n
-          CONFIG_PACKAGE_dnsmasq-full=y
+      - name: 📐 生成最终配置
+        run: cd $WORK_DIR && make defconfig
 
-          # ======== LuCI 全中文支持 ========
-          CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-          CONFIG_PACKAGE_luci-i18n-opkg-zh-cn=y
-          CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
-          CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
-          CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
+      - name: 📥 下载依赖包
+        run: cd $WORK_DIR && make download -j$(nproc) || make download -j1 V=s
 
-          # ======== OpenClash（含 Meta 内核） ========
-          CONFIG_PACKAGE_luci-app-openclash=y
-          CONFIG_PACKAGE_luci-i18n-openclash-zh-cn=y
-
-          # ======== KMS 激活服务 ========
-          CONFIG_PACKAGE_vlmcsd=y
-          CONFIG_PACKAGE_luci-app-vlmcsd=y
-          CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y
-
-          # ======== ZeroTier 内网穿透 ========
-          CONFIG_PACKAGE_zerotier=y
-          CONFIG_PACKAGE_luci-app-zerotier=y
-          CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y
-
-          # ======== 常用工具 ========
-          CONFIG_PACKAGE_curl=y
-          CONFIG_PACKAGE_wget-ssl=y
-          CONFIG_PACKAGE_htop=y
-          CONFIG_PACKAGE_nano=y
-          CONFIG_package_luci-app-ttyd=y
-          CONFIG_PACKAGE_luci-i18n-ttyd-zh-cn=y
-
-          # ======== 文件传输 ========
-          CONFIG_PACKAGE_vsftpd=y
-          CONFIG_PACKAGE_luci-i18n-vsftpd-zh-cn=y
-          CONFIG_PACKAGE_openssh-sftp-server=y
-
-          # ======== 编译输出格式 ========
-          CONFIG_TARGET_IMAGES_GZIP=y
-          CONFIG_TARGET_IMAGES_VMDK=y
-          EOFCONFIG
-
-      - name: Defconfig
+      - name: 🔨 编译固件
         run: |
-          cd openwrt
-          make defconfig
-          # 移除 firewall3 源码强制使用 fw4
-          rm -rf package/firewall3/
+          cd $WORK_DIR
+          echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
+          if [[ "${{ inputs.debug_mode }}" == "true" ]]; then
+            make -j1 V=s
+          else
+            make -j$(nproc)
+          fi
+          echo "DURATION=$(($(date +%s) - $START_TIME))" >> $GITHUB_ENV
 
-      - name: Download Packages
+      - name: 📦 整理输出文件
         run: |
-          cd openwrt
-          make download -j$(nproc) || make download -j1 V=s
+          mkdir -p release
+          BIN_DIR=$WORK_DIR/bin/targets/x86/64
+          cp $BIN_DIR/openwrt-x86-64-generic-*.img.gz release/ 2>/dev/null || \
+          cp $BIN_DIR/openwrt-x86-64-generic-*.img.gz release/openwrt-x86-64-combined.img.gz
+          cp $BIN_DIR/openwrt-x86-64-generic-*.vmdk release/ 2>/dev/null || \
+          cp $BIN_DIR/openwrt-x86-64-generic-*.vmdk release/openwrt-x86-64-combined.vmdk
+          ls -lh release/
 
-      - name: Compile Firmware
-        run: |
-          cd openwrt
-          make -j$(nproc) || make -j1 V=s
-
-      - name: Organize Output
-        run: |
-          cd openwrt
-          mkdir -p ../artifact
-          find bin/targets -name "*.img.gz" -exec cp {} ../artifact/ \;
-          find bin/targets -name "*.vmdk" -exec cp {} ../artifact/ \;
-          ls -lh ../artifact/
-
-      - name: Generate Release Info
-        run: |
-          cd openwrt
-          echo "## 固件信息" > ../artifact/Release-Info.md
-          echo "| 项目 | 值 |" >> ../artifact/Release-Info.md
-          echo "|------|-----|" >> ../artifact/Release-Info.md
-          echo "| OpenWrt 版本 | v25.12.1 |" >> ../artifact/Release-Info.md
-          echo "| 编译时间 | $(date '+%Y-%m-%d %H:%M:%S') |" >> ../artifact/Release-Info.md
-          echo "| 编译平台 | GitHub Actions |" >> ../artifact/Release-Info.md
-          echo "| 默认 IP | 192.168.80.80 |" >> ../artifact/Release-Info.md
-          echo "| 密码 | 无（空密码） |" >> ../artifact/Release-Info.md
-          echo "| 主机名 | OpenWrt-25.12 |" >> ../artifact/Release-Info.md
-
-      - name: Upload to Release
+      - name: ☁️ 发布至 Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v25.12.1-$(date '+%Y%m%d')"
-          name: "OpenWrt v25.12.1 $(date '+%Y-%m-%d')"
-          body_path: artifact/Release-Info.md
-          files: artifact/*
+          tag_name: v$(TZ='Asia/Shanghai' date '+%Y.%m.%d')-b${{ github.run_number }}
+          name: 🛡️ OpenWrt x86-64 官方纯净版
+          body: |
+            ## 📦 版本信息
+            - **基础版本**: `${{ env.OPENWRT_BRANCH }}`
+            - **编译时长**: `${{ env.DURATION }}` 秒
+            - **防火墙**: nftables (FW4)
+            - **内核代理**: OpenClash Meta v1.19.0
+            - **IPv6**: 🚫 已关闭
+            - **DNS**: 🔍 Dnsmasq-full (冲突已修复)
+            - **预装插件**: ZeroTier / vlmcsd-KMS / TTYD / FTP / SFTP / curl / htop / nano
+
+            ## 📥 文件说明
+            | 文件 | 用途 |
+            |---|---|
+            | `.img.gz` | 物理机/PVE/ESXi/Unraid 通用镜像 (推荐) |
+            | `.vmdk`   | VMware Workstation/ESXi 直接导入 |
+          files: release/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
