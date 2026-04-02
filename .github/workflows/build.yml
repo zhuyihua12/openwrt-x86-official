@@ -9,7 +9,6 @@ env:
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
   OPENWRT_BRANCH: v25.12.1
   WORK_DIR: openwrt-src
-  # 修正：适配 Node.js 24 运行环境，消除弃用警告
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
@@ -61,17 +60,13 @@ jobs:
       - name: 📥 预下载编译依赖
         run: |
           cd $WORK_DIR
-          # 核心修复：移除 GitHub Actions 的环境变量，防止 Rust 编译脚本进入严格模式
           unset CI
-          unset GITHUB_ACTIONS
           make download -j$(nproc) || make download -j1 V=s
 
       - name: 🔨 核心编译阶段
         run: |
           cd $WORK_DIR
-          # 核心修复：同样在编译阶段移除 CI 和 GITHUB_ACTIONS 环境变量
           unset CI
-          unset GITHUB_ACTIONS
           make -j$(nproc) || make -j1 V=s
 
       - name: 📦 发布固件至 Release
