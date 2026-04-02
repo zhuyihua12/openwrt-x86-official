@@ -4,10 +4,10 @@ set -e
 echo "🛠️ 开始执行云端 DIY 预处理脚本..."
 
 # 1. 修正 Rust LLVM 配置 (解决 CI 环境编译 Rust 插件失败的问题)
-# 修正说明：OpenWrt 会动态生成 config.toml，直接写文件无效。此处改为使用 sed 动态修补 Makefile。
+# 核心修复：直接设为 false，彻底规避 CI 限制及 Git managed sources 报错
 if [ -f feeds/packages/lang/rust/Makefile ]; then
     echo "正在修补 Rust Makefile..."
-    sed -i 's/download-ci-llvm = true/download-ci-llvm = "if-unchanged"/g' feeds/packages/lang/rust/Makefile
+    sed -i 's/download-ci-llvm = true/download-ci-llvm = false/g' feeds/packages/lang/rust/Makefile
 fi
 echo "✅ Rust LLVM 配置已修正"
 
