@@ -2,13 +2,15 @@ name: Build OpenWrt x86-64
 
 on:
   schedule:
-    - cron: '0 16 * * *'  # 上海时间 00:00
+    - cron: '0 16 * * *'  # 北京时间 00:00
   workflow_dispatch:
 
 env:
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
   OPENWRT_BRANCH: v25.12.1
   WORK_DIR: openwrt-src
+  # 修正：适配 Node.js 24 运行环境，消除弃用警告
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   build:
@@ -43,6 +45,13 @@ jobs:
           cp -f ${{ github.workspace }}/scripts/diy.sh .
           bash diy.sh
 
+      - name: 🔍 显示环境信息 (诊断)
+        run: |
+          echo "--- Node.js Version ---"
+          node -v
+          echo "--- Rustc Version ---"
+          rustc --version || echo "Not installed"
+
       - name: 📐 加载配置并补全 (defconfig)
         run: |
           cd $WORK_DIR
@@ -59,15 +68,15 @@ jobs:
           cd $WORK_DIR
           make -j$(nproc) || make -j1 V=s
 
-      - name: 📦 整理并发布固件
+      - name: 📦 发布固件至 Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v$(TZ='Asia/Shanghai' date '+%Y.%m.%d')-b${{ github.run_number }}
           name: 🛡️ OpenWrt x86-64 官方纯净版
           body: |
-            - **源码版本**: `${{ env.OPENWRT_BRANCH }}`
+            - **基础版本**: `${{ env.OPENWRT_BRANCH }}`
             - **管理地址**: `192.168.80.80`
-            - **编译环境**: GitHub Actions Remote Runner
+            - **内核版本**: OpenClash Meta v1.19.0
           files: |
             ${{ env.WORK_DIR }}/bin/targets/x86/64/*.img.gz
             ${{ env.WORK_DIR }}/bin/targets/x86/64/*.vmdk
