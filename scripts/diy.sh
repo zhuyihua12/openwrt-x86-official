@@ -4,10 +4,9 @@ set -e
 echo "🛠️ 开始执行云端 DIY 预处理脚本..."
 
 # 1. 修正 Rust LLVM 配置 (解决 CI 环境编译 Rust 插件失败的问题)
-# 核心修复：直接设为 false，彻底规避 CI 限制及 Git managed sources 报错
 if [ -f feeds/packages/lang/rust/Makefile ]; then
     echo "正在修补 Rust Makefile..."
-    sed -i 's/download-ci-llvm = true/download-ci-llvm = false/g' feeds/packages/lang/rust/Makefile
+    sed -i 's/download-ci-llvm = true/download-ci-llvm = "if-unchanged"/g' feeds/packages/lang/rust/Makefile
 fi
 echo "✅ Rust LLVM 配置已修正"
 
@@ -25,17 +24,16 @@ fi
     cd "$CORE_DIR"
     
     CORE_VER="v1.19.0"
-    # 修正：针对 MetaCubeX 仓库的正确链接格式
     CORE_NAME="mihomo-linux-amd64-compatible-${CORE_VER}.gz"
     CORE_URL="https://github.com/MetaCubeX/mihomo/releases/download/${CORE_VER}/${CORE_NAME}"
     
     echo "📥 正在下载内核: ${CORE_NAME}"
     
-    # 尝试直接下载，失败则尝试不带版本号的链接
-    if curl -fsSL -o core.gz "$CORE_URL" || \
-       curl -fsSL -o core.gz "https://github.com/MetaCubeX/mihomo/releases/download/${CORE_VER}/mihomo-linux-amd64-compatible.gz"; then
+    # 尝试下载，失败则重试或尝试不带版本号的链接
+    if curl -fsSL --retry 3 -o core.gz "$CORE_URL" || \
+       curl -fsSL --retry 3 -o core.gz "https://github.com/MetaCubeX/mihomo/releases/download/${CORE_VER}/mihomo-linux-amd64-compatible.gz"; then
         
-        # 校验文件类型，防止 404 错误
+        # 校验文件类型
         if file core.gz | grep -q "gzip compressed data"; then
             gunzip -c core.gz > mihomo
             chmod +x mihomo
