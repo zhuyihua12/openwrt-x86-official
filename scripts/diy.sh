@@ -3,49 +3,30 @@ set -e
 
 echo "🛠️ 开始执行云端 DIY 预处理脚本..."
 
-# 1. 修正 Rust LLVM 配置 (解决 CI 环境编译 Rust 插件失败的问题)
-# 注意: Rust configure 不接受等号周围有空格
-if [ -f feeds/packages/lang/rust/Makefile ]; then
-    echo "正在修补 Rust Makefile..."
-    # 更健壮的替换方式：匹配所有可能的格式
-    sed -i 's/download-ci-llvm\s*=\s*true/download-ci-llvm="if-unchanged"/g' feeds/packages/lang/rust/Makefile
-    sed -i 's/download-ci-llvm\s*=\s*"true"/download-ci-llvm="if-unchanged"/g' feeds/packages/lang/rust/Makefile
-    # 验证修改是否成功
-    if grep -q 'download-ci-llvm="if-unchanged"' feeds/packages/lang/rust/Makefile; then
-        echo "✅ Rust LLVM 配置已成功修正为 if-unchanged"
-    else
-        echo "⚠️ 警告: Rust LLVM 配置修正可能未成功，尝试其他方式..."
-        # 直接在文件末尾添加配置覆盖
-        echo 'download-ci-llvm="if-unchanged"' >> feeds/packages/lang/rust/Makefile
-    fi
-else
-    echo "⚠️ Rust Makefile 未找到，跳过 LLVM 配置修正"
-fi
+# 注意: Rust LLVM 的 CI 检测问题已通过 workflow 中的 `unset CI` 解决
+# 无需修改 Rust Makefile 中的 download-ci-llvm 配置
 
-# 2. 预置 OpenClash 源码
+# 1. 预置 OpenClash 源码
 mkdir -p package/lean
 if [ ! -d "package/lean/openclash" ]; then
     echo "📥 正在从 GitHub 克隆 OpenClash..."
     git clone --depth 1 https://github.com/vernesong/OpenClash.git package/lean/openclash
 fi
 
-# 3. 预置 Meta 内核 (Mihomo)
+# 2. 预置 Meta 内核 (Mihomo)
 (
     CORE_DIR="files/etc/openclash/core"
     mkdir -p "$CORE_DIR"
     cd "$CORE_DIR"
-    
+
     CORE_VER="v1.19.0"
     CORE_NAME="mihomo-linux-amd64-compatible-${CORE_VER}.gz"
     CORE_URL="https://github.com/MetaCubeX/mihomo/releases/download/${CORE_VER}/${CORE_NAME}"
-    
+
     echo "📥 正在下载内核: ${CORE_NAME}"
-    
-    # 尝试下载，失败则重试或尝试不带版本号的链接
+
     if curl -fsSL --retry 3 -o core.gz "$CORE_URL" || \
        curl -fsSL --retry 3 -o core.gz "https://github.com/MetaCubeX/mihomo/releases/download/${CORE_VER}/mihomo-linux-amd64-compatible.gz"; then
-        
-        # 校验文件类型
         if file core.gz | grep -q "gzip compressed data"; then
             gunzip -c core.gz > mihomo
             chmod +x mihomo
@@ -61,12 +42,9 @@ fi
     fi
 )
 
-# 4. 修改默认系统参数
-# 修改主机名与默认 IP
+# 3. 修改默认系统参数
 sed -i "s|hostname='.*'|hostname='OpenWrt-25.12'|g" package/base-files/files/bin/config_generate
 sed -i "s|192.168.1.1|192.168.80.80|g" package/base-files/files/bin/config_generate
-
-# 修改时区 (设置为上海)
 sed -i "s|timezone='.*'|timezone='CST-8'|g" package/base-files/files/bin/config_generate
 sed -i "/timezone='.*'/a\set system.@system[-1].zonename='Asia/Shanghai'" package/base-files/files/bin/config_generate
 
