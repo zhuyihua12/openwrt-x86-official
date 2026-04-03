@@ -4,18 +4,19 @@ set -e
 echo "🛠️ 开始执行云端 DIY 预处理脚本..."
 
 # 1. 修正 Rust LLVM 配置 (解决 CI 环境编译 Rust 插件失败的问题)
+# 注意: Rust configure 不接受等号周围有空格
 if [ -f feeds/packages/lang/rust/Makefile ]; then
     echo "正在修补 Rust Makefile..."
     # 更健壮的替换方式：匹配所有可能的格式
-    sed -i 's/download-ci-llvm\s*=\s*true/download-ci-llvm = "if-unchanged"/g' feeds/packages/lang/rust/Makefile
-    sed -i 's/download-ci-llvm\s*=\s*"true"/download-ci-llvm = "if-unchanged"/g' feeds/packages/lang/rust/Makefile
+    sed -i 's/download-ci-llvm\s*=\s*true/download-ci-llvm="if-unchanged"/g' feeds/packages/lang/rust/Makefile
+    sed -i 's/download-ci-llvm\s*=\s*"true"/download-ci-llvm="if-unchanged"/g' feeds/packages/lang/rust/Makefile
     # 验证修改是否成功
-    if grep -q 'download-ci-llvm = "if-unchanged"' feeds/packages/lang/rust/Makefile; then
+    if grep -q 'download-ci-llvm="if-unchanged"' feeds/packages/lang/rust/Makefile; then
         echo "✅ Rust LLVM 配置已成功修正为 if-unchanged"
     else
         echo "⚠️ 警告: Rust LLVM 配置修正可能未成功，尝试其他方式..."
         # 直接在文件末尾添加配置覆盖
-        echo 'download-ci-llvm = "if-unchanged"' >> feeds/packages/lang/rust/Makefile
+        echo 'download-ci-llvm="if-unchanged"' >> feeds/packages/lang/rust/Makefile
     fi
 else
     echo "⚠️ Rust Makefile 未找到，跳过 LLVM 配置修正"
