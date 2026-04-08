@@ -42,17 +42,19 @@ if [ -f "feeds/packages/lang/python/python-setuptools-rust/Makefile" ]; then
     fi
 fi
 
-# Fix Rust CI LLVM configuration issue
+# Fix Rust CI LLVM configuration issue - set to false instead of if-unchanged
 echo "  -> Fixing Rust CI LLVM configuration..."
 if [ -f "feeds/packages/lang/rust/rust-host-build.mk" ]; then
     # Modify the rust build configuration to handle CI environment
-    sed -i 's/--set llvm.download-ci-llvm=true/--set llvm.download-ci-llvm=if-unchanged/g' feeds/packages/lang/rust/rust-host-build.mk 2>/dev/null || true
+    sed -i 's/--set llvm.download-ci-llvm=true/--set llvm.download-ci-llvm=false/g' feeds/packages/lang/rust/rust-host-build.mk 2>/dev/null || true
 fi
 
 # Alternative: Patch the config.toml generation in rust Makefile
 if [ -f "feeds/packages/lang/rust/Makefile" ]; then
-    # Replace download-ci-llvm=true with if-unchanged in the Makefile
-    sed -i 's/download-ci-llvm=true/download-ci-llvm=if-unchanged/g' feeds/packages/lang/rust/Makefile
+    # Replace download-ci-llvm=true with false in the Makefile
+    sed -i 's/download-ci-llvm=true/download-ci-llvm=false/g' feeds/packages/lang/rust/Makefile
+    # Also replace if-unchanged with false if it was set
+    sed -i 's/download-ci-llvm=if-unchanged/download-ci-llvm=false/g' feeds/packages/lang/rust/Makefile
 fi
 
 echo "Rust dependency fix completed"
