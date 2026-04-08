@@ -8,30 +8,30 @@ echo "馃洜锔?寮€濮嬫墽琛屼簯绔?DIY 棰勫鐞嗚剼鏈?.."
 # ========================================
 # 闂鍘熷洜: OpenWrt v25.12.1 浣跨敤 Python 3.13锛屼笉鍐嶈嚜鍔ㄦ彁渚?setuptools
 # 鍙傝€? https://github.com/openwrt/packages/pull/27810
-# 
-# 淇鏂规硶: 涓洪渶瑕?setuptools 鐨勫寘娣诲姞 HOST_BUILD_DEPENDS
 
 echo "馃敡 淇 Rust/Python 鍖呯殑 setuptools 渚濊禆..."
 
 # 淇 rust 鍖?if [ -f "feeds/packages/lang/rust/Makefile" ]; then
     echo "  鈫?淇 rust 鍖?.."
-    sed -i '/^HOST_BUILD_DEPENDS.*python3\/host/a HOST_BUILD_DEPENDS += python-setuptools/host' feeds/packages/lang/rust/Makefile 2>/dev/null || true
-    # 濡傛灉娌℃湁 HOST_BUILD_DEPENDS 琛岋紝娣诲姞涓€涓?    if ! grep -q "HOST_BUILD_DEPENDS.*python-setuptools" feeds/packages/lang/rust/Makefile; then
-        sed -i '/^include.*rules.mk/a HOST_BUILD_DEPENDS:=python3/host python-setuptools/host' feeds/packages/lang/rust/Makefile
+    # 鍦?include 瑙勫垯鍚庢坊鍔?HOST_BUILD_DEPENDS
+    if ! grep -q "python-setuptools/host" feeds/packages/lang/rust/Makefile; then
+        sed -i '/^include.*rules.mk/a\
+HOST_BUILD_DEPENDS:=python3/host python-setuptools/host' feeds/packages/lang/rust/Makefile
     fi
 fi
 
 # 淇 cargo-c 鍖?if [ -f "feeds/packages/devel/cargo-c/Makefile" ]; then
     echo "  鈫?淇 cargo-c 鍖?.."
     if ! grep -q "python-setuptools/host" feeds/packages/devel/cargo-c/Makefile; then
-        sed -i '/^HOST_BUILD_DEPENDS.*python3\/host/a HOST_BUILD_DEPENDS += python-setuptools/host' feeds/packages/devel/cargo-c/Makefile 2>/dev/null || true
+        sed -i '/^include.*rules.mk/a\
+HOST_BUILD_DEPENDS:=python3/host python-setuptools/host' feeds/packages/devel/cargo-c/Makefile
     fi
 fi
 
 # 淇 python-setuptools-rust 鍖?if [ -f "feeds/packages/lang/python/python-setuptools-rust/Makefile" ]; then
     echo "  鈫?淇 python-setuptools-rust 鍖?.."
     if ! grep -q "python-setuptools/host" feeds/packages/lang/python/python-setuptools-rust/Makefile; then
-        sed -i '/^HOST_BUILD_DEPENDS/s/$/ python-setuptools\/host/' feeds/packages/lang/python/python-setuptools-rust/Makefile 2>/dev/null || true
+        sed -i 's/HOST_BUILD_DEPENDS:=/HOST_BUILD_DEPENDS:=python-setuptools\/host /' feeds/packages/lang/python/python-setuptools-rust/Makefile
     fi
 fi
 
