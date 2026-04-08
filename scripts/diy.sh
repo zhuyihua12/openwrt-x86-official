@@ -12,25 +12,30 @@ echo "馃洜锔?寮€濮嬫墽琛屼簯绔?DIY 棰勫鐞嗚剼鏈?.."
 echo "馃敡 淇 Rust/Python 鍖呯殑 setuptools 渚濊禆..."
 
 # 淇 rust 鍖?if [ -f "feeds/packages/lang/rust/Makefile" ]; then
-    echo "  鈫?淇 rust 鍖?.."
-    # 鍦?include 瑙勫垯鍚庢坊鍔?HOST_BUILD_DEPENDS
-    if ! grep -q "python-setuptools/host" feeds/packages/lang/rust/Makefile; then
-        sed -i '/^include.*rules.mk/a\
-HOST_BUILD_DEPENDS:=python3/host python-setuptools/host' feeds/packages/lang/rust/Makefile
+    echo "  -> 淇 rust 鍖?.."
+    if ! grep -q "python-setuptools/host" feeds/packages/lang/rust/Makefile 2>/dev/null; then
+        # 鍒涘缓涓存椂鏂囦欢娣诲姞 HOST_BUILD_DEPENDS
+        cat > /tmp/rust_patch.txt << 'EOF'
+HOST_BUILD_DEPENDS:=python3/host python-setuptools/host
+EOF
+        # 鍦?include 琛屽悗鎻掑叆
+        sed -i '/^include.*rules.mk/r /tmp/rust_patch.txt' feeds/packages/lang/rust/Makefile
     fi
 fi
 
 # 淇 cargo-c 鍖?if [ -f "feeds/packages/devel/cargo-c/Makefile" ]; then
-    echo "  鈫?淇 cargo-c 鍖?.."
-    if ! grep -q "python-setuptools/host" feeds/packages/devel/cargo-c/Makefile; then
-        sed -i '/^include.*rules.mk/a\
-HOST_BUILD_DEPENDS:=python3/host python-setuptools/host' feeds/packages/devel/cargo-c/Makefile
+    echo "  -> 淇 cargo-c 鍖?.."
+    if ! grep -q "python-setuptools/host" feeds/packages/devel/cargo-c/Makefile 2>/dev/null; then
+        cat > /tmp/cargo_patch.txt << 'EOF'
+HOST_BUILD_DEPENDS:=python3/host python-setuptools/host
+EOF
+        sed -i '/^include.*rules.mk/r /tmp/cargo_patch.txt' feeds/packages/devel/cargo-c/Makefile
     fi
 fi
 
 # 淇 python-setuptools-rust 鍖?if [ -f "feeds/packages/lang/python/python-setuptools-rust/Makefile" ]; then
-    echo "  鈫?淇 python-setuptools-rust 鍖?.."
-    if ! grep -q "python-setuptools/host" feeds/packages/lang/python/python-setuptools-rust/Makefile; then
+    echo "  -> 淇 python-setuptools-rust 鍖?.."
+    if ! grep -q "python-setuptools/host" feeds/packages/lang/python/python-setuptools-rust/Makefile 2>/dev/null; then
         sed -i 's/HOST_BUILD_DEPENDS:=/HOST_BUILD_DEPENDS:=python-setuptools\/host /' feeds/packages/lang/python/python-setuptools-rust/Makefile
     fi
 fi
