@@ -4,14 +4,15 @@ set -e
 echo "OpenWrt DIY Pre-processing Script..."
 
 # ========================================
-# Fix Rust Build Issue (Python 3.13 Compatibility)
+# Fix Rust Build Issue (Python 3.13 Compatibility + CI Environment)
 # ========================================
-# Problem: OpenWrt v25.12.1 uses Python 3.13 which no longer provides setuptools
+# Problem 1: OpenWrt v25.12.1 uses Python 3.13 which no longer provides setuptools
+# Problem 2: Rust build fails on CI with 'llvm.download-ci-llvm' error
 # Reference: https://github.com/openwrt/packages/pull/27810
 
-echo "Fixing Rust/Python package setuptools dependencies..."
+echo "Fixing Rust/Python package dependencies..."
 
-# Fix rust package
+# Fix rust package - add setuptools dependency and fix CI LLVM config
 if [ -f "feeds/packages/lang/rust/Makefile" ]; then
     echo "  -> Fixing rust package..."
     if ! grep -q "python-setuptools/host" feeds/packages/lang/rust/Makefile 2>/dev/null; then
@@ -41,7 +42,20 @@ if [ -f "feeds/packages/lang/python/python-setuptools-rust/Makefile" ]; then
     fi
 fi
 
-echo "Setuptools dependency fix completed"
+# Fix Rust CI LLVM configuration issue
+echo "  -> Fixing Rust CI LLVM configuration..."
+if [ -f "feeds/packages/lang/rust/rust-host-build.mk" ]; then
+    # Modify the rust build configuration to handle CI environment
+    sed -i 's/--set llvm.download-ci-llvm=true/--set llvm.download-ci-llvm=if-unchanged/g' feeds/packages/lang/rust/rust-host-build.mk 2>/dev/null || true
+fi
+
+# Alternative: Patch the config.toml generation in rust Makefile
+if [ -f "feeds/packages/lang/rust/Makefile" ]; then
+    # Replace download-ci-llvm=true with if-unchanged in the Makefile
+    sed -i 's/download-ci-llvm=true/download-ci-llvm=if-unchanged/g' feeds/packages/lang/rust/Makefile
+fi
+
+echo "Rust dependency fix completed"
 
 # ========================================
 # Pre-install OpenClash Source
@@ -78,7 +92,7 @@ fi
             exit 1
         fi
     else
-        echo "Error: Cannot download core, please verify version $CORE_VER"
+        echo "Error: Cannot download core, please verify version $CORE_VER is correct"
         exit 1
     fi
 )
