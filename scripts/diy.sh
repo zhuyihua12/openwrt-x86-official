@@ -1,19 +1,54 @@
 #!/bin/bash
 set -e
 
-echo "🛠️ 开始执行云端 DIY 预处理脚本..."
+echo "馃洜锔?寮€濮嬫墽琛屼簯绔?DIY 棰勫鐞嗚剼鏈?.."
 
-# 注意: Rust LLVM 的 CI 检测问题已通过 workflow 中的 `unset CI` 解决
-# 无需修改 Rust Makefile 中的 download-ci-llvm 配置
+# ========================================
+# 淇 Rust 缂栬瘧闂 (Python 3.13 鍏煎鎬?
+# ========================================
+# 闂鍘熷洜: OpenWrt v25.12.1 浣跨敤 Python 3.13锛屼笉鍐嶈嚜鍔ㄦ彁渚?setuptools
+# 鍙傝€? https://github.com/openwrt/packages/pull/27810
+# 
+# 淇鏂规硶: 涓洪渶瑕?setuptools 鐨勫寘娣诲姞 HOST_BUILD_DEPENDS
 
-# 1. 预置 OpenClash 源码
+echo "馃敡 淇 Rust/Python 鍖呯殑 setuptools 渚濊禆..."
+
+# 淇 rust 鍖?if [ -f "feeds/packages/lang/rust/Makefile" ]; then
+    echo "  鈫?淇 rust 鍖?.."
+    sed -i '/^HOST_BUILD_DEPENDS.*python3\/host/a HOST_BUILD_DEPENDS += python-setuptools/host' feeds/packages/lang/rust/Makefile 2>/dev/null || true
+    # 濡傛灉娌℃湁 HOST_BUILD_DEPENDS 琛岋紝娣诲姞涓€涓?    if ! grep -q "HOST_BUILD_DEPENDS.*python-setuptools" feeds/packages/lang/rust/Makefile; then
+        sed -i '/^include.*rules.mk/a HOST_BUILD_DEPENDS:=python3/host python-setuptools/host' feeds/packages/lang/rust/Makefile
+    fi
+fi
+
+# 淇 cargo-c 鍖?if [ -f "feeds/packages/devel/cargo-c/Makefile" ]; then
+    echo "  鈫?淇 cargo-c 鍖?.."
+    if ! grep -q "python-setuptools/host" feeds/packages/devel/cargo-c/Makefile; then
+        sed -i '/^HOST_BUILD_DEPENDS.*python3\/host/a HOST_BUILD_DEPENDS += python-setuptools/host' feeds/packages/devel/cargo-c/Makefile 2>/dev/null || true
+    fi
+fi
+
+# 淇 python-setuptools-rust 鍖?if [ -f "feeds/packages/lang/python/python-setuptools-rust/Makefile" ]; then
+    echo "  鈫?淇 python-setuptools-rust 鍖?.."
+    if ! grep -q "python-setuptools/host" feeds/packages/lang/python/python-setuptools-rust/Makefile; then
+        sed -i '/^HOST_BUILD_DEPENDS/s/$/ python-setuptools\/host/' feeds/packages/lang/python/python-setuptools-rust/Makefile 2>/dev/null || true
+    fi
+fi
+
+echo "鉁?setuptools 渚濊禆淇瀹屾垚"
+
+# ========================================
+# 棰勭疆 OpenClash 婧愮爜
+# ========================================
 mkdir -p package/lean
 if [ ! -d "package/lean/openclash" ]; then
-    echo "📥 正在从 GitHub 克隆 OpenClash..."
+    echo "馃摜 姝ｅ湪浠?GitHub 鍏嬮殕 OpenClash..."
     git clone --depth 1 https://github.com/vernesong/OpenClash.git package/lean/openclash
 fi
 
-# 2. 预置 Meta 内核 (Mihomo)
+# ========================================
+# 棰勭疆 Meta 鍐呮牳 (Mihomo)
+# ========================================
 (
     CORE_DIR="files/etc/openclash/core"
     mkdir -p "$CORE_DIR"
@@ -23,7 +58,7 @@ fi
     CORE_NAME="mihomo-linux-amd64-compatible-${CORE_VER}.gz"
     CORE_URL="https://github.com/MetaCubeX/mihomo/releases/download/${CORE_VER}/${CORE_NAME}"
 
-    echo "📥 正在下载内核: ${CORE_NAME}"
+    echo "馃摜 姝ｅ湪涓嬭浇鍐呮牳: ${CORE_NAME}"
 
     if curl -fsSL --retry 3 -o core.gz "$CORE_URL" || \
        curl -fsSL --retry 3 -o core.gz "https://github.com/MetaCubeX/mihomo/releases/download/${CORE_VER}/mihomo-linux-amd64-compatible.gz"; then
@@ -31,21 +66,23 @@ fi
             gunzip -c core.gz > mihomo
             chmod +x mihomo
             rm -f core.gz
-            echo "✅ Mihomo 内核部署成功"
+            echo "鉁?Mihomo 鍐呮牳閮ㄧ讲鎴愬姛"
         else
-            echo "❌ 错误: 下载的文件不是有效的内核压缩包"
+            echo "鉂?閿欒: 涓嬭浇鐨勬枃浠朵笉鏄湁鏁堢殑鍐呮牳鍘嬬缉鍖?
             exit 1
         fi
     else
-        echo "❌ 错误: 无法下载内核，请确认版本号 $CORE_VER 是否正确"
+        echo "鉂?閿欒: 鏃犳硶涓嬭浇鍐呮牳锛岃纭鐗堟湰鍙?$CORE_VER 鏄惁姝ｇ‘"
         exit 1
     fi
 )
 
-# 3. 修改默认系统参数
+# ========================================
+# 淇敼榛樿绯荤粺鍙傛暟
+# ========================================
 sed -i "s|hostname='.*'|hostname='OpenWrt-25.12'|g" package/base-files/files/bin/config_generate
 sed -i "s|192.168.1.1|192.168.80.80|g" package/base-files/files/bin/config_generate
 sed -i "s|timezone='.*'|timezone='CST-8'|g" package/base-files/files/bin/config_generate
 sed -i "/timezone='.*'/a\set system.@system[-1].zonename='Asia/Shanghai'" package/base-files/files/bin/config_generate
 
-echo "✅ 云端预处理完成"
+echo "鉁?浜戠棰勫鐞嗗畬鎴?
