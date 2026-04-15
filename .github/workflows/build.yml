@@ -69,10 +69,16 @@ jobs:
           unset CI
           make -j$(nproc) || make -j1 V=s
 
+      - name: 📋 计算发布 Tag
+        run: |
+          RELEASE_TAG="v$(TZ='Asia/Shanghai' date '+%Y.%m.%d')-b${{ github.run_number }}"
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "DEBUG: computed tag = ${RELEASE_TAG}"
+
       - name: 📦 发布固件至 Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v$(TZ='Asia/Shanghai' date '+%Y.%m.%d')-b${{ github.run_number }}
+          tag_name: ${{ env.RELEASE_TAG }}
           name: 🛡️ OpenWrt x86-64 官方纯净版
           body: |
             - **基础版本**: `${{ env.OPENWRT_BRANCH }}`
