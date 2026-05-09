@@ -2,14 +2,13 @@ name: Build OpenWrt x86-64
 
 on:
   schedule:
-    - cron: '0 16 * * *'  # 北京时间 00:00
+    - cron: '0 16 * * *'
   workflow_dispatch:
 
 env:
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
   OPENWRT_BRANCH: v25.12.1
   WORK_DIR: openwrt-src
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   build:
@@ -70,20 +69,21 @@ jobs:
           make -j$(nproc) || make -j1 V=s
 
       - name: 📋 计算发布 Tag
+        id: tag
         run: |
           RELEASE_TAG="v$(TZ='Asia/Shanghai' date '+%Y.%m.%d')-b${{ github.run_number }}"
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "tag_name=${RELEASE_TAG}" >> $GITHUB_OUTPUT
           echo "DEBUG: computed tag = ${RELEASE_TAG}"
 
       - name: 📦 发布固件至 Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: 🛡️ OpenWrt x86-64 官方纯净版
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: "🐲 OpenWrt x86-64 Official"
           body: |
-            - **基础版本**: `${{ env.OPENWRT_BRANCH }}`
-            - **管理地址**: `192.168.80.80`
-            - **内核版本**: OpenClash Meta v1.19.0
+            - **Base**: `${{ env.OPENWRT_BRANCH }}`
+            - **Address**: `192.168.80.80`
+            - **OpenClash**: Meta Kernel
           files: |
             ${{ env.WORK_DIR }}/bin/targets/x86/64/*.img.gz
             ${{ env.WORK_DIR }}/bin/targets/x86/64/*.vmdk
