@@ -68,6 +68,11 @@ jobs:
           unset CI
           make -j$(nproc) || make -j1 V=s
 
+      - name: 📂 列出编译产物
+        run: |
+          echo "=== 编译产物列表 ==="
+          ls -lh $WORK_DIR/bin/targets/x86/64/ || echo "目录不存在"
+
       - name: 📋 计算发布 Tag
         id: tag
         run: |
@@ -85,7 +90,6 @@ jobs:
             - **Address**: `192.168.80.80`
             - **OpenClash**: Meta Kernel
           files: |
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/*.img.gz
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/*.vmdk
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined-efi*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
