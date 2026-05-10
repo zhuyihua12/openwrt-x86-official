@@ -26,7 +26,8 @@ jobs:
           sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
           gettext git java-propose-classpath libelf-dev libncurses5-dev libncursesw5-dev \
           libssl-dev python3 python3-pyelftools python3-setuptools rsync subversion \
-          swig time xsltproc zlib1g-dev p7zip-full jq wget curl unzip
+          swig time xsltproc zlib1g-dev p7zip-full jq wget curl unzip \
+          qemu-utils
 
       - name: 🐙 获取 OpenWrt 源码
         run: git clone $OPENWRT_REPO -b $OPENWRT_BRANCH $WORK_DIR
@@ -49,6 +50,8 @@ jobs:
           node -v
           echo "--- Rustc Version ---"
           rustc --version || echo "Not installed"
+          echo "--- qemu-img Version ---"
+          qemu-img --version || echo "Not installed"
 
       - name: 📐 加载配置并补全 (defconfig)
         run: |
