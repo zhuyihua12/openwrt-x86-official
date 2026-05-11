@@ -7,7 +7,7 @@ on:
 
 env:
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
-  OPENWRT_BRANCH: v25.12.1
+  OPENWRT_BRANCH: v25.12.3
   WORK_DIR: openwrt-src
 
 jobs:
