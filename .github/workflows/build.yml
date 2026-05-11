@@ -76,6 +76,28 @@ jobs:
           echo "=== 编译产物列表 ==="
           ls -lh $WORK_DIR/bin/targets/x86/64/ || echo "目录不存在"
 
+      - name: 📀 转换为 ESXi 兼容 VMDK
+        run: |
+          cd $WORK_DIR/bin/targets/x86/64/
+          # 找到 IMG 文件
+          IMG_FILE=$(ls *combined-efi*.img 2>/dev/null | head -1)
+          if [ -z "$IMG_FILE" ]; then
+            IMG_FILE=$(ls *combined-efi*.img.gz 2>/dev/null | head -1)
+            if [ -n "$IMG_FILE" ]; then
+              gunzip -k "$IMG_FILE"
+              IMG_FILE="${IMG_FILE%.gz}"
+            fi
+          fi
+          if [ -n "$IMG_FILE" ]; then
+            VMDK_FILE="${IMG_FILE%.img}.vmdk"
+            echo "🔄 转换: $IMG_FILE → $VMDK_FILE (ESXi streamOptimized)"
+            qemu-img convert -O vmdk -o subformat=streamOptimized "$IMG_FILE" "$VMDK_FILE"
+            ls -lh "$VMDK_FILE"
+          else
+            echo "❌ 未找到 IMG 文件"
+            exit 1
+          fi
+
       - name: 📋 计算发布 Tag
         id: tag
         run: |
@@ -94,5 +116,6 @@ jobs:
             - **OpenClash**: Meta Kernel
           files: |
             ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined-efi*
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined-efi*.vmdk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
