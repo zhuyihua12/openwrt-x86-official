@@ -91,7 +91,7 @@ jobs:
           if [ -n "$IMG_FILE" ]; then
             VMDK_FILE="${IMG_FILE%.img}.vmdk"
             echo "🔄 转换: $IMG_FILE → $VMDK_FILE (ESXi streamOptimized)"
-            qemu-img convert -O vmdk -o subformat=streamOptimized "$IMG_FILE" "$VMDK_FILE"
+            qemu-img convert -O vmdk -o subformat=monolithicFlat "$IMG_FILE" "$VMDK_FILE"
             ls -lh "$VMDK_FILE"
           else
             echo "❌ 未找到 IMG 文件"
