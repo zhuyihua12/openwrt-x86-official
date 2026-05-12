@@ -59,6 +59,54 @@ jobs:
           cp -f ${{ github.workspace }}/configs/x86_64.config .config
           make defconfig
 
+      - name: 🔒 强制锁定所有自定义包选项
+        run: |
+          cd $WORK_DIR
+          echo "=== 强制写入自定义包选项（defconfig 后） ==="
+          # DNS: 禁用普通 dnsmasq，启用 dnsmasq-full
+          sed -i 's/CONFIG_PACKAGE_dnsmasq=y/# CONFIG_PACKAGE_dnsmasq is not set/' .config
+          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
+          echo "CONFIG_PACKAGE_dnsmasq_full_dhcp=y" >> .config
+          echo "CONFIG_PACKAGE_dnsmasq_full_dnssec=y" >> .config
+
+          # 中文语言包
+          echo "CONFIG_PACKAGE_luci-i18n-base-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-admin-full-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-system-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-status-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-network-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-ttyd-zh-cn=y" >> .config
+
+          # ZeroTier + LuCI 界面 + 中文
+          echo "CONFIG_PACKAGE_zerotier=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-zerotier=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y" >> .config
+
+          # KMS (vlmcsd) + LuCI 界面 + 中文
+          echo "CONFIG_PACKAGE_vlmcsd=y" >> .config
+          echo "CONFIG_PACKAGE_luci-app-vlmcsd=y" >> .config
+          echo "CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y" >> .config
+
+          # 其他应用
+          echo "CONFIG_PACKAGE_luci-app-ttyd=y" >> .config
+
+          # OpenClash + 依赖
+          echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
+
+          # 确保 dnsmasq-full 的 deps 不会因为冲突被清掉
+          make olddefconfig 2>/dev/null || true
+
+          echo "=== 验证关键包选项 ==="
+          for pkg in dnsmasq-full luci-i18n-base-zh-cn zerotier luci-app-zerotier vlmcsd luci-app-vlmcsd; do
+            if grep -q "CONFIG_PACKAGE_${pkg}=y" .config; then
+              echo "✅ $pkg"
+            else
+              echo "❌ $pkg 丢失！"
+              echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+            fi
+          done
+
       - name: 📥 预下载编译依赖
         run: |
           cd $WORK_DIR
@@ -114,8 +162,12 @@ jobs:
             - **Base**: `${{ env.OPENWRT_BRANCH }}`
             - **Address**: `192.168.80.80`
             - **OpenClash**: Meta Kernel
+            - **dnsmasq-full** ✅ | **ZeroTier** ✅ | **KMS (vlmcsd)** ✅ | **中文 LuCI** ✅
           files: |
             ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined-efi*
             ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined-efi*.vmdk
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined*.img.gz
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/*rootfs*.img.gz
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined*.vmdk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
