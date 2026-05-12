@@ -53,59 +53,76 @@ jobs:
           echo "--- qemu-img Version ---"
           qemu-img --version || echo "Not installed"
 
-      - name: 📐 加载配置并补全 (defconfig)
+      - name: 📐 复制配置 → defconfig
         run: |
           cd $WORK_DIR
+          # 复制我们的基础配置
           cp -f ${{ github.workspace }}/configs/x86_64.config .config
+          # 先生成 defconfig 补全 target 基础选项
           make defconfig
+          echo "=== defconfig 后关键包状态 ==="
+          grep -E "CONFIG_PACKAGE_(dnsmasq|luci-i18n|zerotier|vlmcsd|dnsmasq-full)" .config || echo " (全丢了)"
 
-      - name: 🔒 强制锁定所有自定义包选项
+      - name: 🔒 强制锁定自定义包 (关键步骤)
         run: |
           cd $WORK_DIR
-          echo "=== 强制写入自定义包选项（defconfig 后） ==="
-          # DNS: 禁用普通 dnsmasq，启用 dnsmasq-full
+          echo "=== 强制写入自定义包选项 ==="
+          
+          # 禁用普通 dnsmasq，启用 dnsmasq-full
           sed -i 's/CONFIG_PACKAGE_dnsmasq=y/# CONFIG_PACKAGE_dnsmasq is not set/' .config
-          echo "CONFIG_PACKAGE_dnsmasq-full=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_dhcp=y" >> .config
-          echo "CONFIG_PACKAGE_dnsmasq_full_dnssec=y" >> .config
+          
+          # 写入所有需要的包 (用 >> 追加，然后 olddefconfig 会补全依赖)
+          cat >> .config << 'PACKEOF'
+# dnsmasq-full
+CONFIG_PACKAGE_dnsmasq-full=y
+CONFIG_PACKAGE_dnsmasq_full_dhcp=y
+CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y
+CONFIG_PACKAGE_dnsmasq_full_dnssec=y
 
-          # 中文语言包
-          echo "CONFIG_PACKAGE_luci-i18n-base-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-admin-full-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-system-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-status-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-network-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-ttyd-zh-cn=y" >> .config
+# 中文语言包
+CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-admin-full-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-status-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-ttyd-zh-cn=y
 
-          # ZeroTier + LuCI 界面 + 中文
-          echo "CONFIG_PACKAGE_zerotier=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-zerotier=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y" >> .config
+# ZeroTier
+CONFIG_PACKAGE_zerotier=y
+CONFIG_PACKAGE_luci-app-zerotier=y
+CONFIG_PACKAGE_luci-i18n-zerotier-zh-cn=y
 
-          # KMS (vlmcsd) + LuCI 界面 + 中文
-          echo "CONFIG_PACKAGE_vlmcsd=y" >> .config
-          echo "CONFIG_PACKAGE_luci-app-vlmcsd=y" >> .config
-          echo "CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y" >> .config
+# KMS
+CONFIG_PACKAGE_vlmcsd=y
+CONFIG_PACKAGE_luci-app-vlmcsd=y
+CONFIG_PACKAGE_luci-i18n-vlmcsd-zh-cn=y
 
-          # 其他应用
-          echo "CONFIG_PACKAGE_luci-app-ttyd=y" >> .config
+# ttyd
+CONFIG_PACKAGE_luci-app-ttyd=y
 
-          # OpenClash + 依赖
-          echo "CONFIG_PACKAGE_luci-app-openclash=y" >> .config
+# OpenClash (由 diy.sh 处理)
+CONFIG_PACKAGE_luci-app-openclash=y
+PACKEOF
 
-          # 确保 dnsmasq-full 的 deps 不会因为冲突被清掉
-          make olddefconfig 2>/dev/null || true
-
-          echo "=== 验证关键包选项 ==="
-          for pkg in dnsmasq-full luci-i18n-base-zh-cn zerotier luci-app-zerotier vlmcsd luci-app-vlmcsd; do
-            if grep -q "CONFIG_PACKAGE_${pkg}=y" .config; then
+          echo "=== 运行 olddefconfig (保留已有选项，只补全新选项) ==="
+          make olddefconfig 2>&1 || true
+          
+          echo "=== 验证关键包 ==="
+          for pkg in dnsmasq-full luci-i18n-base-zh-cn zerotier luci-app-zerotier vlmcsd luci-app-vlmcsd luci-app-ttyd; do
+            if grep -q "CONFIG_PACKAGE_${pkg}=y" .config 2>/dev/null; then
               echo "✅ $pkg"
             else
-              echo "❌ $pkg 丢失！"
+              echo "❌ $pkg 丢失! 尝试直接 echo >>"
               echo "CONFIG_PACKAGE_${pkg}=y" >> .config
             fi
           done
+          
+          # 最后再做一次 olddefconfig
+          make olddefconfig 2>&1 || true
+          
+          echo "=== 最终验证 ==="
+          grep -E "CONFIG_PACKAGE_(dnsmasq|luci-i18n|zerotier|vlmcsd)" .config
 
       - name: 📥 预下载编译依赖
         run: |
@@ -127,7 +144,6 @@ jobs:
       - name: 📀 转换为 ESXi 兼容 VMDK
         run: |
           cd $WORK_DIR/bin/targets/x86/64/
-          # 找到 IMG 文件
           IMG_FILE=$(ls *combined-efi*.img 2>/dev/null | head -1)
           if [ -z "$IMG_FILE" ]; then
             IMG_FILE=$(ls *combined-efi*.img.gz 2>/dev/null | head -1)
@@ -164,10 +180,8 @@ jobs:
             - **OpenClash**: Meta Kernel
             - **dnsmasq-full** ✅ | **ZeroTier** ✅ | **KMS (vlmcsd)** ✅ | **中文 LuCI** ✅
           files: |
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined-efi*
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined-efi*.vmdk
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined*.img.gz
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/*rootfs*.img.gz
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/*combined*.vmdk
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/*.img.gz
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/*.vmdk
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
