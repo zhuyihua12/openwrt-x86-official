@@ -53,36 +53,74 @@ jobs:
           echo "--- qemu-img Version ---"
           qemu-img --version || echo "Not installed"
 
-      - name: 📐 复制配置 → defconfig
+      - name: 📐 生成配置 (目标平台 + 自定义包)
         run: |
           cd $WORK_DIR
-          cp -f ${{ github.workspace }}/configs/x86_64.config .config
-          make defconfig
-          echo "=== defconfig 后关键包状态 ==="
-          grep -E "CONFIG_PACKAGE_(dnsmasq|luci-i18n|zerotier|vlmcsd|dnsmasq-full)" .config || echo " (全丢了)"
-
-      - name: 🔒 强制锁定自定义包 (关键步骤)
-        run: |
-          cd $WORK_DIR
-          echo "=== 强制写入自定义包选项 ==="
-          # 禁用普通 dnsmasq，启用 dnsmasq-full
-          sed -i 's/CONFIG_PACKAGE_dnsmasq=y/# CONFIG_PACKAGE_dnsmasq is not set/' .config
-          # 从独立的包配置文件中追加所有自定义包
-          cat ${{ github.workspace }}/configs/packages.config >> .config
-          echo "=== 运行 olddefconfig (保留已有选项，只补全新选项) ==="
-          make olddefconfig 2>&1 || true
-          echo "=== 验证关键包 ==="
-          for pkg in dnsmasq-full luci-i18n-base-zh-cn zerotier luci-app-zerotier vlmcsd luci-app-vlmcsd luci-app-ttyd; do
-            if grep -q "CONFIG_PACKAGE_${pkg}=y" .config 2>/dev/null; then
-              echo "✅ $pkg"
-            else
-              echo "❌ $pkg 丢失! 尝试直接 echo >>"
-              echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+          #
+          # ══════════════════════════════════════════════
+          # 配置生成策略 (修复包缺失问题)
+          # ══════════════════════════════════════════════
+          # 
+          # 问题: make defconfig 会丢弃 .config 中非目标默认的 CONFIG_PACKAGE_*
+          # 解决: 先只用目标选项做 defconfig，再追加自定义包，最后 olddefconfig
+          #
+          echo "=== Step 1: 生成纯目标平台默认配置 ==="
+          echo "CONFIG_TARGET_x86=y" > .config
+          echo "CONFIG_TARGET_x86_64=y" >> .config
+          echo "CONFIG_TARGET_x86_64_DEVICE_generic=y" >> .config
+          make defconfig 2>&1
+          echo "默认包: $(grep -cE '^CONFIG_PACKAGE_.*=y' .config)"
+          #
+          echo "=== Step 2: 应用自定义设置 ==="
+          # 禁用默认 dnsmasq
+          sed -i 's/^CONFIG_PACKAGE_dnsmasq=y/# CONFIG_PACKAGE_dnsmasq is not set/' .config
+          # 追加完整配置中的所有非目标行（即自定义包和设置）
+          # 跳过: CONFIG_TARGET_*, CONFIG_GRUB_*, CONFIG_VMDK_*, 注释, 空行
+          grep -v -E '^(CONFIG_TARGET_|CONFIG_GRUB_|CONFIG_VMDK_|#|$)' \
+            ${{ github.workspace }}/configs/x86_64.config >> .config
+          # 确保 feeds 开启
+          for feed in CONFIG_FEED_packages CONFIG_FEED_luci CONFIG_FEED_routing CONFIG_FEED_telephony; do
+            if ! grep -q "^${feed}=y" .config; then
+              echo "${feed}=y" >> .config
             fi
           done
+          #
+          echo "=== Step 3: olddefconfig 解析依赖 (保留自定义包) ==="
           make olddefconfig 2>&1 || true
-          echo "=== 最终验证 ==="
-          grep -E "CONFIG_PACKAGE_(dnsmasq|luci-i18n|zerotier|vlmcsd)" .config
+          #
+          echo "=== Step 4: 验证所有关键包 ==="
+          # 从 x86_64.config 中提取所有 CONFIG_PACKAGE_*=y
+          grep -oP 'CONFIG_PACKAGE_\K[^=]+' ${{ github.workspace }}/configs/x86_64.config > /tmp/expected-pkgs.txt
+          # 额外追加 MUST 清单中 x86_64.config 可能遗漏的包
+          for extra in luci luci-base; do
+            echo "$extra" >> /tmp/expected-pkgs.txt
+          done
+          sort -u /tmp/expected-pkgs.txt > /tmp/expected-pkgs-sorted.txt
+          MISSING=0
+          while IFS= read -r pkg; do
+            [ -z "$pkg" ] && continue
+            if grep -q "^CONFIG_PACKAGE_${pkg}=y" .config 2>/dev/null; then
+              echo "✅ $pkg"
+            else
+              echo "❌ $pkg 缺失 — 强制写入"
+              echo "CONFIG_PACKAGE_${pkg}=y" >> .config
+              ((MISSING++))
+            fi
+          done < /tmp/expected-pkgs-sorted.txt
+          if [ "$MISSING" -gt 0 ]; then
+            echo "⚠️ 强制写入了 $MISSING 个包，再运行 olddefconfig"
+            make olddefconfig 2>&1 || true
+            echo "=== 最终验证 ==="
+            while IFS= read -r pkg; do
+              [ -z "$pkg" ] && continue
+              if grep -q "^CONFIG_PACKAGE_${pkg}=y" .config 2>/dev/null; then
+                echo "✅ $pkg"
+              else
+                echo "❌❌ $pkg 仍缺失 — 依赖不满足"
+              fi
+            done < /tmp/expected-pkgs-sorted.txt
+          fi
+          echo "=== 配置完成: $(grep -cE '^CONFIG_PACKAGE_.*=y' .config) 个包 ==="
 
       - name: 📥 预下载编译依赖
         run: |
