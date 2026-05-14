@@ -1,0 +1,66 @@
+name: Auto Update OpenWrt Version
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 每天 UTC 2:00 = 北京时间 10:00
+  workflow_dispatch:       # 支持手动触发
+
+env:
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - name: 🐙 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 🏷️ 获取 OpenWrt 最新稳定版 tag
+        id: latest
+        run: |
+          git ls-remote --tags "$OPENWRT_REPO" \
+            | grep -oP 'refs/tags/v\d+\.\d+\.\d+(\.\d+)?$' \
+            | sed 's|refs/tags/||' \
+            | sort -t. -k1.2 -n -k2 -n -k3 -n \
+            | tail -1 \
+            > /tmp/latest_tag.txt
+          TAG=$(cat /tmp/latest_tag.txt)
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "✅ 最新稳定版: ${TAG}"
+
+      - name: 🔍 提取当前 build.yml 中的版本
+        id: current
+        run: |
+          CUR=$(grep -oP 'OPENWRT_BRANCH:\s*\Kv?\S+' .github/workflows/build.yml || echo "none")
+          echo "branch=${CUR}" >> $GITHUB_OUTPUT
+          echo "当前版本: ${CUR}"
+
+      - name: ⏭️ 无须更新（已是最新版）
+        if: steps.current.outputs.branch == steps.latest.outputs.tag
+        run: echo "✅ 已是最新版本 ${{ steps.latest.outputs.tag }}，跳过更新"
+
+      - name: 🔄 更新 build.yml 版本号
+        if: steps.current.outputs.branch != steps.latest.outputs.tag
+        run: |
+          sed -i "s/OPENWRT_BRANCH: .*/OPENWRT_BRANCH: ${{ steps.latest.outputs.tag }}/" .github/workflows/build.yml
+          echo "🔄 版本更新: ${{ steps.current.outputs.branch }} → ${{ steps.latest.outputs.tag }}"
+
+      - name: 📝 提交变更
+        if: steps.current.outputs.branch != steps.latest.outputs.tag
+        run: |
+          git config user.name "openwrt-auto-update[bot]"
+          git config user.email "openwrt-auto-update[bot]@users.noreply.github.com"
+          git add .github/workflows/build.yml
+          git commit -m "chore: bump OpenWrt to ${{ steps.latest.outputs.tag }}"
+          git push
+
+      - name: 🚀 触发新版本编译
+        if: steps.current.outputs.branch != steps.latest.outputs.tag
+        run: |
+          gh workflow run build.yml --ref main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
