@@ -95,8 +95,8 @@ jobs:
             fi
           done
           #
-          echo "=== Step 3: olddefconfig 解析依赖 (保留自定义包) ==="
-          make olddefconfig 2>&1 || { echo "=== olddefconfig 失败，-j1 V=s 重试以暴露真因 ==="; make olddefconfig -j1 V=s 2>&1 | tail -80 || true; }
+          echo "=== Step 3: defconfig 解析依赖 (olddefconfig 在 v25.12 CI 下 broken-pipe，弃用) ==="
+          make defconfig 2>&1 || { echo "=== defconfig 失败，-j1 V=s 重试 ==="; make defconfig -j1 V=s 2>&1 | tail -80; exit 1; }
           #
           echo "=== Step 4: 验证所有关键包 ==="
           # 从 x86_64.config 中提取所有 CONFIG_PACKAGE_*=y（仅行首有效行，避免把 "# CONFIG_PACKAGE_dnsmasq is not set" 注释行当包名）
@@ -119,8 +119,8 @@ jobs:
             fi
           done < /tmp/expected-pkgs-sorted.txt
           if [ "$MISSING" -gt 0 ]; then
-            echo "⚠️ 强制写入了 $MISSING 个包，再运行 olddefconfig"
-            make olddefconfig 2>&1 || true
+            echo "⚠️ 强制写入了 $MISSING 个包，再运行 defconfig"
+            make defconfig 2>&1 || true
             echo "=== 最终验证 ==="
             while IFS= read -r pkg; do
               [ -z "$pkg" ] && continue
