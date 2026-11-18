@@ -85,6 +85,9 @@ jobs:
           # 跳过: CONFIG_TARGET_*, CONFIG_GRUB_*, CONFIG_VMDK_*, 注释, 空行
           grep -v -E '^(CONFIG_TARGET_|CONFIG_GRUB_|CONFIG_VMDK_|#|$)' \
             ${{ github.workspace }}/configs/x86_64.config >> .config
+          # ttyd 需要 libwebsockets-full；默认 openssl/mbedtls 变体与其冲突，强制关闭
+          sed -i 's/^CONFIG_PACKAGE_libwebsockets-openssl=y/# CONFIG_PACKAGE_libwebsockets-openssl is not set/' .config
+          sed -i 's/^CONFIG_PACKAGE_libwebsockets-mbedtls=y/# CONFIG_PACKAGE_libwebsockets-mbedtls is not set/' .config
           # 确保 feeds 开启
           for feed in CONFIG_FEED_packages CONFIG_FEED_luci CONFIG_FEED_routing CONFIG_FEED_telephony; do
             if ! grep -q "^${feed}=y" .config; then
@@ -93,7 +96,7 @@ jobs:
           done
           #
           echo "=== Step 3: olddefconfig 解析依赖 (保留自定义包) ==="
-          make olddefconfig 2>&1 || true
+          make olddefconfig 2>&1 || { echo "=== olddefconfig 失败，-j1 V=s 重试以暴露真因 ==="; make olddefconfig -j1 V=s 2>&1 | tail -80 || true; }
           #
           echo "=== Step 4: 验证所有关键包 ==="
           # 从 x86_64.config 中提取所有 CONFIG_PACKAGE_*=y（仅行首有效行，避免把 "# CONFIG_PACKAGE_dnsmasq is not set" 注释行当包名）
