@@ -89,7 +89,12 @@ jobs:
           sed -i 's/^CONFIG_PACKAGE_libwebsockets-openssl=y/# CONFIG_PACKAGE_libwebsockets-openssl is not set/' .config
           sed -i 's/^CONFIG_PACKAGE_libwebsockets-mbedtls=y/# CONFIG_PACKAGE_libwebsockets-mbedtls is not set/' .config
           # rootfs 分区扩容：OpenClash(+ruby)/OpenSSL/lws-full 使 rootfs 超出默认 104MB
-          sed -i 's/^CONFIG_TARGET_ROOTFS_PARTSIZE=.*/CONFIG_TARGET_ROOTFS_PARTSIZE="512"/' .config
+          # 注意: TARGET_ROOTFS_PARTSIZE 是 int 符号，不能带引号
+          if grep -q '^CONFIG_TARGET_ROOTFS_PARTSIZE=' .config; then
+            sed -i 's/^CONFIG_TARGET_ROOTFS_PARTSIZE=.*/CONFIG_TARGET_ROOTFS_PARTSIZE=512/' .config
+          else
+            echo "CONFIG_TARGET_ROOTFS_PARTSIZE=512" >> .config
+          fi
           # 确保 feeds 开启
           for feed in CONFIG_FEED_packages CONFIG_FEED_luci CONFIG_FEED_routing CONFIG_FEED_telephony; do
             if ! grep -q "^${feed}=y" .config; then
@@ -134,6 +139,7 @@ jobs:
             done < /tmp/expected-pkgs-sorted.txt
           fi
           echo "=== 配置完成: $(grep -cE '^CONFIG_PACKAGE_.*=y' .config) 个包 ==="
+          grep '^CONFIG_TARGET_ROOTFS_PARTSIZE=' .config || { echo "❌ PARTSIZE 行丢失"; exit 1; }
 
       - name: 📥 预下载编译依赖
         run: |
