@@ -76,7 +76,7 @@ fi
     mkdir -p "$CORE_DIR"
     cd "$CORE_DIR"
 
-    CORE_VER="v1.19.0"
+    CORE_VER="v1.19.34"
     CORE_NAME="mihomo-linux-amd64-compatible-${CORE_VER}.gz"
     CORE_URL="https://github.com/MetaCubeX/mihomo/releases/download/${CORE_VER}/${CORE_NAME}"
 
@@ -102,7 +102,7 @@ fi
 # ========================================
 # Modify Default System Parameters
 # ========================================
-sed -i "s|hostname='.*'|hostname='OpenWrt-25.12'|g" package/base-files/files/bin/config_generate
+sed -i "s|hostname='.*'|hostname='OpenWrt'|g" package/base-files/files/bin/config_generate
 sed -i "s|192.168.1.1|192.168.80.80|g" package/base-files/files/bin/config_generate
 sed -i "s|timezone='.*'|timezone='CST-8'|g" package/base-files/files/bin/config_generate
 sed -i "/timezone='.*'/a\set system.@system[-1].zonename='Asia/Shanghai'" package/base-files/files/bin/config_generate

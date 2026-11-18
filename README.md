@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/OpenWrt-v25.12.3-00B5E2?style=for-the-badge&logo=openwrt&logoColor=white" />
+<img src="https://img.shields.io/badge/OpenWrt-v25.12.6-00B5E2?style=for-the-badge&logo=openwrt&logoColor=white" />
 <img src="https://img.shields.io/badge/Platform-x86__64-4CAF50?style=for-the-badge&logo=linux&logoColor=white" />
 <img src="https://img.shields.io/badge/Firewall-nftables%20FW4-FF6B35?style=for-the-badge" />
 <img src="https://img.shields.io/badge/OpenClash-Meta%20%E5%86%85%E6%A0%B8-9C27B0?style=for-the-badge" />
@@ -31,7 +31,7 @@
 | 📺 **KMS 激活** | 预装 vlmcsd，自动激活 Windows / Office |
 | 🔗 **ZeroTier** | 内网穿透，随时随地访问家庭网络 |
 | 🚫 **IPv6 关闭** | 默认禁用 IPv6，适合纯 IPv4 环境 |
-| 🎯 **编译精简** | 仅输出 `.img.gz` + `.vmdk` 两种实用格式 |
+| 🎯 **编译精简** | Release 仅发布 `ext4/squashfs .img.gz` + `单文件 .vmdk` 三个实用文件 |
 
 ---
 
@@ -39,10 +39,11 @@
 
 前往 **[Releases](https://github.com/zhuyihua12/openwrt-x86-official/releases)** 页面下载最新版本。
 
-| 文件格式 | 适用场景 | 推荐度 |
-|----------|----------|--------|
-| `.img.gz` | 物理机写入 U 盘/SSD，导入 PVE/ESXi/Unraid/VirtualBox | ⭐⭐⭐⭐⭐ |
-| `.vmdk` | VMware Workstation / ESXi 直接导入 | ⭐⭐⭐⭐ |
+| 文件名 | 格式 | 适用场景 | 推荐度 |
+|----------|----------|----------|--------|
+| `openwrt-x86-64-generic-ext4-combined-efi.img.gz` | ext4 img.gz | 物理机写入 U 盘/SSD，导入 PVE/ESXi/Unraid/VirtualBox | ⭐⭐⭐⭐⭐ |
+| `openwrt-x86-64-generic-ext4-combined-efi.vmdk` | 单文件 VMDK | VMware Workstation / ESXi 直接导入 | ⭐⭐⭐⭐ |
+| `openwrt-x86-64-generic-squashfs-combined-efi.img.gz` | squashfs img.gz | 需要 extroot 扩容的场景 | ⭐⭐⭐ |
 
 > 💡 每次 OpenWrt 官方发布新稳定版后，本项目会自动检测并重新编译，确保固件始终保持最新。
 
@@ -121,7 +122,7 @@ qm importdisk 100 openwrt-x86-64-combined.img local-lvm
 ```mermaid
 flowchart TD
     A[每天 10:00 北京时间] --> B{检测 OpenWrt 官方<br>最新稳定版 tag}
-    B -->|有新版| C[更新 workflow 版本号]
+    B -->|有新版| C[更新 configs/openwrt.version]
     C --> D[触发 GitHub Actions 编译]
     D --> E[发布固件到 Releases]
     B -->|无新版| F[跳过，不浪费资源]
