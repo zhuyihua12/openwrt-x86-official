@@ -88,6 +88,8 @@ jobs:
           # ttyd 需要 libwebsockets-full；默认 openssl/mbedtls 变体与其冲突，强制关闭
           sed -i 's/^CONFIG_PACKAGE_libwebsockets-openssl=y/# CONFIG_PACKAGE_libwebsockets-openssl is not set/' .config
           sed -i 's/^CONFIG_PACKAGE_libwebsockets-mbedtls=y/# CONFIG_PACKAGE_libwebsockets-mbedtls is not set/' .config
+          # rootfs 分区扩容：OpenClash(+ruby)/OpenSSL/lws-full 使 rootfs 超出默认 104MB
+          sed -i 's/^CONFIG_TARGET_ROOTFS_PARTSIZE=.*/CONFIG_TARGET_ROOTFS_PARTSIZE="512"/' .config
           # 确保 feeds 开启
           for feed in CONFIG_FEED_packages CONFIG_FEED_luci CONFIG_FEED_routing CONFIG_FEED_telephony; do
             if ! grep -q "^${feed}=y" .config; then
