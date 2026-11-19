@@ -140,6 +140,8 @@ jobs:
           fi
           echo "=== 配置完成: $(grep -cE '^CONFIG_PACKAGE_.*=y' .config) 个包 ==="
           grep '^CONFIG_TARGET_ROOTFS_PARTSIZE=' .config || { echo "❌ PARTSIZE 行丢失"; exit 1; }
+          grep '^CONFIG_LUCI_LANG_zh_Hans=y' .config || { echo "❌ 中文语言开关未生效"; exit 1; }
+          grep '^CONFIG_PACKAGE_luci-i18n-base-zh-cn=y' .config || { echo "❌ zh-cn i18n 包未被联动启用"; exit 1; }
 
       - name: 📥 预下载编译依赖
         run: |
@@ -157,6 +159,19 @@ jobs:
         run: |
           echo "=== 编译产物列表 ==="
           ls -lh $WORK_DIR/bin/targets/x86/64/ || echo "目录不存在"
+          echo "=== manifest 中文包断言 ==="
+          FOUND=0
+          for m in $WORK_DIR/bin/targets/x86/64/*.manifest; do
+            [ -f "$m" ] || continue
+            FOUND=1
+            if grep -q "luci-i18n-base-zh-cn" "$m"; then
+              echo "✅ $(basename "$m"): 含中文包 ($(grep -c 'luci-i18n-.*-zh-cn' "$m") 个)"
+            else
+              echo "❌ $(basename "$m"): 缺少中文语言包"
+              exit 1
+            fi
+          done
+          [ "$FOUND" = "1" ] || { echo "❌ 无 manifest 可校验"; exit 1; }
 
       - name: 📀 转换为 ESXi 兼容 VMDK
         run: |
