@@ -100,6 +100,32 @@ fi
 )
 
 # ========================================
+# Pre-install ZeroTier LuCI App (removed from OpenWrt 25.12 luci feed)
+# ========================================
+mkdir -p package/custom
+if [ ! -d "package/custom/luci-app-zerotier" ]; then
+    echo "Cloning luci-app-zerotier (Ser9ei, 25.12-ready)..."
+    git clone --depth 1 https://github.com/Ser9ei/luci-app-zerotier.git package/custom/luci-app-zerotier
+fi
+
+# ========================================
+# Pre-install vlmcsd + LuCI app (removed from OpenWrt 25.12 feeds, take from ImmortalWrt)
+# ========================================
+if [ ! -d "package/custom/vlmcsd" ]; then
+    echo "Fetching vlmcsd + luci-app-vlmcsd from ImmortalWrt..."
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/immortalwrt/packages.git /tmp/im-pkgs
+    (cd /tmp/im-pkgs && git sparse-checkout set net/vlmcsd)
+    cp -r /tmp/im-pkgs/net/vlmcsd package/custom/vlmcsd
+
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/immortalwrt/luci.git /tmp/im-luci
+    (cd /tmp/im-luci && git sparse-checkout set applications/luci-app-vlmcsd)
+    cp -r /tmp/im-luci/applications/luci-app-vlmcsd package/custom/luci-app-vlmcsd
+    # ImmortalWrt 树内相对路径改为 feed 绝对路径
+    sed -i 's|include ../../luci.mk|include $(TOPDIR)/feeds/luci/luci.mk|' package/custom/luci-app-vlmcsd/Makefile
+    rm -rf /tmp/im-pkgs /tmp/im-luci
+fi
+
+# ========================================
 # Modify Default System Parameters
 # ========================================
 sed -i "s|hostname='.*'|hostname='OpenWrt'|g" package/base-files/files/bin/config_generate
