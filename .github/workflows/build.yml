@@ -159,17 +159,21 @@ jobs:
         run: |
           echo "=== 编译产物列表 ==="
           ls -lh $WORK_DIR/bin/targets/x86/64/ || echo "目录不存在"
-          echo "=== manifest 中文包断言 ==="
+          echo "=== manifest 内容断言 ==="
           FOUND=0
           for m in $WORK_DIR/bin/targets/x86/64/*.manifest; do
             [ -f "$m" ] || continue
             FOUND=1
-            if grep -q "luci-i18n-base-zh-cn" "$m"; then
-              echo "✅ $(basename "$m"): 含中文包 ($(grep -c 'luci-i18n-.*-zh-cn' "$m") 个)"
-            else
-              echo "❌ $(basename "$m"): 缺少中文语言包"
-              exit 1
-            fi
+            FAIL=0
+            for need in luci-i18n-base-zh-cn mosdns odhcp6c odhcpd-full; do
+              if grep -q "^${need} " "$m" || grep -q "${need} -" "$m"; then
+                echo "✅ $(basename "$m"): $need 已实装"
+              else
+                echo "❌ $(basename "$m"): 缺少 $need"
+                FAIL=1
+              fi
+            done
+            [ "$FAIL" = "0" ] || exit 1
           done
           [ "$FOUND" = "1" ] || { echo "❌ 无 manifest 可校验"; exit 1; }
 

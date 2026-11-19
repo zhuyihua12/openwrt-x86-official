@@ -4,7 +4,7 @@
 <img src="https://img.shields.io/badge/Platform-x86__64-4CAF50?style=for-the-badge&logo=linux&logoColor=white" />
 <img src="https://img.shields.io/badge/Firewall-nftables%20FW4-FF6B35?style=for-the-badge" />
 <img src="https://img.shields.io/badge/OpenClash-Meta%20%E5%86%85%E6%A0%B8-9C27B0?style=for-the-badge" />
-<img src="https://img.shields.io/badge/IPv6-%E5%85%B3%E9%97%AD-e74c3c?style=for-the-badge" />
+<img src="https://img.shields.io/badge/IPv6-DHCP%E5%85%A8%E5%BC%80-4CAF50?style=for-the-badge" />
 <img src="https://img.shields.io/github/actions/workflow/status/zhuyihua12/openwrt-x86-official/build.yml?style=for-the-badge&label=Build" />
 
 <br/><br/>
@@ -26,11 +26,12 @@
 | 🧬 **官方纯净源码** | 基于 OpenWrt Official 最新稳定版，从源码编译 |
 | 🔄 **自动追踪更新** | 每日检测 OpenWrt 官方新版本，发现更新自动编译 |
 | 🇨🇳 **全中文面板** | 所有 LuCI 插件均包含中文语言包 |
-| 🌐 **OpenClash** | 预装 Meta 内核（mihomo），支持 Rule-Based 分流 |
-| 🔍 **Dnsmasq 完整版** | 替换默认版，支持更多 DNS 功能，已解决与 OpenClash 冲突 |
+| 🌐 **OpenClash** | 预装 Meta 内核（mihomo），已预置接管参数，导入节点即用 |
+| 🧭 **mosdns DNS 前置** | 国内外域名智能分流，DNS 全程无泄漏 |
+| 🔍 **Dnsmasq 完整版** | 替换默认版，全量转发至 mosdns，已解决与 OpenClash 冲突 |
 | 📺 **KMS 激活** | 预装 vlmcsd，自动激活 Windows / Office |
 | 🔗 **ZeroTier** | 内网穿透，随时随地访问家庭网络 |
-| 🚫 **IPv6 关闭** | 默认禁用 IPv6，适合纯 IPv4 环境 |
+| 🌍 **IPv6 全开** | WAN 侧 DHCPv6 自动获取，LAN 侧 RA/DHCPv6 自动分发，v4+v6 地址·网关·DNS 全免配置 |
 | 🎯 **编译精简** | Release 仅发布 `ext4/squashfs .img.gz` + `单文件 .vmdk` 三个实用文件 |
 
 ---
@@ -91,13 +92,15 @@ qm importdisk 100 openwrt-x86-64-combined.img local-lvm
 ## ⚙️ 预装插件
 
 **🌐 网络代理**
-- `luci-app-openclash` — OpenClash Meta 内核，Rule-Based 分流
+- `luci-app-openclash` — OpenClash Meta 内核，已预置 Rule 模式 / Fake-IP / IPv6 防泄漏参数
 
 **🔍 DNS 服务**
-- `dnsmasq-full` — Dnsmasq 完整版，已解决与 OpenClash 冲突
+- `mosdns` — DNS 前置分流器（已预置国内/代理双名单分流配置）
+- `dnsmasq-full` — Dnsmasq 完整版，全部查询转发 mosdns
 
 **🔗 网络工具**
 - `zerotier` + `luci-app-zerotier` — 内网穿透
+- `odhcp6c` / `odhcpd-full` / `luci-proto-ipv6` / `6in4` — IPv6 全家桶
 
 **🖥️ 系统服务**
 - `vlmcsd` + `luci-app-vlmcsd` — KMS 激活服务器
@@ -112,6 +115,32 @@ qm importdisk 100 openwrt-x86-64-combined.img local-lvm
 
 **🌍 全中文支持**
 - 所有 LuCI 插件均安装中文语言包
+
+---
+
+## 🧭 DNS 分流与防泄漏架构
+
+```
+局域网设备
+   │  IPv4+IPv6 地址/网关/DNS 均由路由器 DHCP 自动下发（零配置）
+   ▼
+dnsmasq (:53) ──全部查询──▶ mosdns (:5334)
+                              ├─ 国内域名名单 ──▶ 223.5.5.5 / 119.29.29.29（物理直连，不走代理）
+                              └─ 代理名单+未命中 ─▶ mihomo (:7874) ──▶ 经代理节点隧道出境
+```
+
+| 防线 | 机制 |
+|------|------|
+| DNS 不泄漏 | 代理域名解析只经 mihomo 隧道出境；未识别域名默认走代理侧（保守策略）；防火墙阻断局域网设备直连外部 53/853（v4+v6） |
+| IP 不泄漏 | OpenClash 透明代理接管 LAN 流量；代理域名不发 AAAA（Fake-IP v4 栈），杜绝 IPv6 直连泄漏 |
+| 无代理兜底 | OpenClash 未启动/节点失效时，mosdns 自动回退国内公共 DNS，普通上网不受影响 |
+
+### 🚀 OpenClash 使用（三步）
+1. **OpenClash → 配置管理**：粘贴机场订阅或添加节点，点击更新
+2. **OpenClash → 配置切换**：选择节点/节点组，保存应用
+3. **首页开关**：一键启动（固件已默认 `enable=1`，开机自启内核）
+
+> 分流模式已预置为 **Rule 规则分流**；DNS 已由 mosdns 全链路配好，**无需再改任何 DNS 设置**。
 
 ---
 

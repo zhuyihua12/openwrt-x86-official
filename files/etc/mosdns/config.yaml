@@ -1,0 +1,85 @@
+# mosdns 主配置 — OpenClash DNS 前置分流器
+# 链路: LAN -> dnsmasq(:53) -> mosdns(:5334)
+#   国内域名列表   -> 223.5.5.5 / 119.29.29.29 直连解析（不走代理）
+#   代理域名+未命中 -> 127.0.0.1:7874 (mihomo，经节点隧道出境；OC 未启动时兜底 223.5.5.5)
+log:
+  level: info
+  file: /tmp/mosdns.log
+  max_size: 10
+  max_age: 7
+
+plugins:
+  # ---------- 域名集合 ----------
+  - tag: direct_domains
+    type: domain_set
+    args:
+      files:
+        - "/etc/mosdns/rule/direct_list.txt"
+
+  - tag: proxy_domains
+    type: domain_set
+    args:
+      files:
+        - "/etc/mosdns/rule/proxy_list.txt"
+
+  # ---------- 上游 ----------
+  # 国内直连上游（物理路由，不进代理）
+  - tag: cn_forward
+    type: forward
+    args:
+      concurrent: 2
+      upstreams:
+        - addr: "223.5.5.5:53"
+          idle_timeout: 30
+        - addr: "119.29.29.29:53"
+          idle_timeout: 30
+
+  # 出境上游：mihomo 的 fake-ip/隧道解析；OpenClash 未启动时兜底国内上游
+  - tag: oc_forward
+    type: forward
+    args:
+      concurrent: 2
+      upstreams:
+        - addr: "127.0.0.1:7874"
+          idle_timeout: 30
+        - addr: "223.5.5.5:53"
+          idle_timeout: 30
+
+  # ---------- 缓存 ----------
+  - tag: cache
+    type: cache
+    args:
+      size: 20480
+      lazy_cache_ttl: 86400
+
+  # ---------- 主分流序列 ----------
+  # 规则（自上而下）:
+  #   1. 代理名单命中            -> 走 OpenClash
+  #   2. 非国内域名（含未知域名）-> 走 OpenClash（默认出境，防 DNS 泄漏）
+  #   3. 其余（国内名单/反向查询）-> 国内直连
+  - tag: main_sequence
+    type: sequence
+    args:
+      exec:
+        - $cache
+        - if:
+            - "(query_is_domain && ! in_domain $direct_domains) || in_domain $proxy_domains"
+            - exec:
+                - $oc_forward
+            - break: true
+        - $cn_forward
+
+  # ---------- 监听 ----------
+  - tag: main_udp_server
+    type: udp_server
+    args:
+      entry: main_sequence
+      listen:
+        - "127.0.0.1:5334"
+
+  - tag: main_tcp_server
+    type: tcp_server
+    args:
+      entry: main_sequence
+      listen:
+        - "127.0.0.1:5334"

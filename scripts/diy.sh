@@ -126,6 +126,38 @@ if [ ! -d "package/custom/vlmcsd" ]; then
 fi
 
 # ========================================
+# Pre-install mosdns (sbwml feed, 官方 feed 无此包) + golang 工具链升级
+# ========================================
+if [ ! -d "package/custom/mosdns-feed" ]; then
+    echo "Cloning mosdns (sbwml v5)..."
+    git clone --depth 1 -b v5 https://github.com/sbwml/luci-app-mosdns.git package/custom/mosdns-feed
+    # mosdns v5.3.x 需要新版 golang 工具链，替换官方 lang/golang
+    if [ -d "feeds/packages/lang/golang" ]; then
+        echo "Replacing lang/golang with sbwml 26.x fork..."
+        rm -rf feeds/packages/lang/golang
+        git clone --depth 1 -b 26.x https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
+    fi
+fi
+
+# ========================================
+# mosdns 分流规则名单（构建期下载，不入库）
+# ========================================
+RULE_DIR="files/etc/mosdns/rule"
+mkdir -p "$RULE_DIR"
+for pair in "direct_list direct-list.txt" "proxy_list proxy-list.txt"; do
+    set -- $pair
+    if [ ! -s "$RULE_DIR/$1.txt" ]; then
+        echo "Downloading rule list: $2"
+        curl -fsSL --retry 3 -o "$RULE_DIR/$1.txt" \
+          "https://raw.githubusercontent.com/Loyalsoldier/v2ray-rules-dat/release/$2" \
+          || { echo "Error: 无法下载 $2"; exit 1; }
+    fi
+done
+# mosdns domain_set 需要干净域名行：去掉注释/空行/首点
+sed -i '/^#/d; /^$/d' "$RULE_DIR/direct_list.txt" "$RULE_DIR/proxy_list.txt"
+wc -l "$RULE_DIR"/*.txt
+
+# ========================================
 # Modify Default System Parameters
 # ========================================
 sed -i "s|hostname='.*'|hostname='OpenWrt'|g" package/base-files/files/bin/config_generate
