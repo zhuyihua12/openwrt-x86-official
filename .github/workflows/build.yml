@@ -207,10 +207,15 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag_name }}
           name: "🐲 OpenWrt x86-64 Official"
           body: |
-            - **Base**: `${{ env.OPENWRT_BRANCH }}`
-            - **Address**: `192.168.80.80`
-            - **OpenClash**: Meta Kernel
+            ### 🧩 单网口旁路由固件
+            - **Base**: `${{ env.OPENWRT_BRANCH }}`（OpenWrt 官方纯净源码）
+            - **接入**: 单网口接主路由 LAN，本机自动 DHCP 获取地址/网关/DNS（不提供 DHCP 服务）
+            - **管理地址**: 主路由 DHCP 分配，终端列表中找主机名 `OpenWrt`
+            - **DNS**: mosdns 前置分流（国内直连 / 代理域名走节点隧道，无 DNS 泄漏）；内置重写 `time.android.com → 203.107.6.88`
+            - **OpenClash**: Meta 内核，已预置参数，导入节点即用
+            - **IPv6**: v4+v6 地址/网关/DNS 全自动
             - **dnsmasq-full** ✅ | **ZeroTier** ✅ | **KMS (vlmcsd)** ✅ | **中文 LuCI** ✅
+            > 使用文档见 README「旁路由接线」章节
           files: |
             ${{ env.WORK_DIR }}/bin/targets/x86/64/openwrt-x86-64-generic-squashfs-combined-efi.img.gz
             ${{ env.WORK_DIR }}/bin/targets/x86/64/openwrt-x86-64-generic-ext4-combined-efi.img.gz
