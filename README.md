@@ -112,7 +112,7 @@ qm importdisk 100 openwrt-x86-64-combined.img local-lvm
 
 **🔗 网络工具**
 - `zerotier` + `luci-app-zerotier` — 内网穿透
-- `odhcp6c` / `odhcpd-full` / `luci-proto-ipv6` / `6in4` — IPv6 全家桶
+- `odhcp6c` / `odhcpd` / `luci-proto-ipv6` / `6in4` — IPv6 全家桶
 
 **🖥️ 系统服务**
 - `vlmcsd` + `luci-app-vlmcsd` — KMS 激活服务器

@@ -165,7 +165,7 @@ jobs:
             [ -f "$m" ] || continue
             FOUND=1
             FAIL=0
-            for need in luci-i18n-base-zh-cn mosdns odhcp6c odhcpd-full; do
+            for need in luci-i18n-base-zh-cn mosdns odhcp6c odhcpd; do
               if grep -q "^${need} " "$m" || grep -q "${need} -" "$m"; then
                 echo "✅ $(basename "$m"): $need 已实装"
               else
