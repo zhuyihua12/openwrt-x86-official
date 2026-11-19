@@ -1,18 +1,17 @@
 #!/bin/sh
-# 防 DNS 泄漏：局域网设备不得绕过路由器(dnsmasq->mosdns)直连外部 DNS
-# 放行：目标是路由器 IPv4 LAN 地址 / v6 link-local（路由器自身 DNS 服务地址）
+# 防 DNS 泄漏（旁路由形态）：局域网设备不得绕过路由器 DNS 链直连外部 53/853
+# 放行目标 = 本机 br-lan 上的全部 v4 地址（DHCP 动态获取；网络变化会触发防火墙重载刷新）
 
-ROUTER_IP="192.168.80.80"
-
-# --- IPv4 ---
-iptables -I FORWARD -p udp -d "$ROUTER_IP" --dport 53 -j ACCEPT
-iptables -I FORWARD -p tcp -d "$ROUTER_IP" --dport 53 -j ACCEPT
+for ip in $(ip -4 addr show dev br-lan 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1); do
+	iptables -I FORWARD -p udp -d "$ip" --dport 53 -j ACCEPT
+	iptables -I FORWARD -p tcp -d "$ip" --dport 53 -j ACCEPT
+done
 iptables -I FORWARD -p udp --dport 53 -j DROP
 iptables -I FORWARD -p tcp --dport 53 -j DROP
 iptables -I FORWARD -p udp --dport 853 -j DROP
 iptables -I FORWARD -p tcp --dport 853 -j DROP
 
-# --- IPv6 ---
+# --- IPv6：放行发往路由器链路本地地址(v6 DNS)的查询 ---
 ip6tables -I FORWARD -p udp -d fe80::/64 --dport 53 -j ACCEPT
 ip6tables -I FORWARD -p tcp -d fe80::/64 --dport 53 -j ACCEPT
 ip6tables -I FORWARD -p udp --dport 53 -j DROP

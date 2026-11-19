@@ -161,7 +161,6 @@ wc -l "$RULE_DIR"/*.txt
 # Modify Default System Parameters
 # ========================================
 sed -i "s|hostname='.*'|hostname='OpenWrt'|g" package/base-files/files/bin/config_generate
-sed -i "s|192.168.1.1|192.168.80.80|g" package/base-files/files/bin/config_generate
 sed -i "s|timezone='.*'|timezone='CST-8'|g" package/base-files/files/bin/config_generate
 sed -i "/timezone='.*'/a\set system.@system[-1].zonename='Asia/Shanghai'" package/base-files/files/bin/config_generate
 

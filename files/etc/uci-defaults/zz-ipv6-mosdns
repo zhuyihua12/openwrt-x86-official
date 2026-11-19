@@ -1,40 +1,64 @@
 #!/bin/sh
-# 首启配置: IPv6 全开(DHCP) + dnsmasq 全量转 mosdns + OpenClash 预置
-# (uci-defaults 在 config_generate 之后、首次开机时执行一次)
+# 单网口旁路由首启配置：
+#   - 唯一网口(eth0/br-lan)作为 DHCP 客户端，从主路由自动获取 IPv4 地址/网关/DNS
+#   - 同口 DHCPv6 客户端，获取 IPv6 地址/前缀/DNS
+#   - 本机不提供任何 DHCP/RA/DHCPv6/NDP 服务（由主路由负责）
+#   - dnsmasq 仅作为 DNS 服务器（-> mosdns 分流），OpenClash 透明代理照常工作
 
-# ============ WAN IPv6: DHCPv6 自动获取前缀/地址/DNS ============
-if ! uci -q get network.wan6 >/dev/null 2>&1; then
-	uci set network.wan6='interface'
-	uci set network.wan6.proto='dhcpv6'
-	uci set network.wan6.device='wan'
-fi
-uci set network.wan6.peerdns='1'
+# ============ 网络：lan 改为 DHCP 客户端，删除 wan/wan6 ============
+uci set network.lan.proto='dhcp'
+uci -q delete network.lan.ipaddr
+uci -q delete network.lan.netmask
+uci -q delete network.lan.gateway
+uci -q delete network.lan.ip6assign
+uci set network.lan.peerdns='1'
+uci -q delete network.wan
+uci -q delete network.wan6
+
+# 同口 IPv6 客户端（向主路由拿 v6 地址/前缀/DNS）
+uci -q delete network.lan6
+uci set network.lan6='interface'
+uci set network.lan6.proto='dhcpv6'
+uci set network.lan6.device='@lan'
+uci set network.lan6.peerdns='1'
 uci commit network
 
-# 把 wan6 并入 wan 所在防火墙区（若 config_generate 未包含）
-target=""; found=0; i=0
+# ============ 防火墙：删除 wan 区；lan 区纳入 lan6 ============
+i=0
 while uci -q get firewall.@zone[$i] >/dev/null 2>&1; do
 	nets=$(uci -q get firewall.@zone[$i].network)
 	case " $nets " in
-	*" wan "*)
-		target=$i
-		case " $nets " in *" wan6 "*) found=1 ;; esac
+	*" wan "*|*" wan6 "*)
+		uci delete firewall.@zone[$i]
+		i=0
+		continue
 		;;
 	esac
 	i=$((i+1))
 done
-if [ "$found" -eq 0 ] && [ -n "$target" ]; then
-	uci add_list firewall.@zone[$target].network='wan6'
-	uci commit firewall
-fi
+# lan 区加入 lan6 逻辑接口
+i=0
+while uci -q get firewall.@zone[$i] >/dev/null 2>&1; do
+	nets=$(uci -q get firewall.@zone[$i].network)
+	case " $nets " in
+	*" lan "*)
+		case " $nets " in
+		*" lan6 "*) ;;
+		*) uci add_list firewall.@zone[$i].network='lan6' ;;
+		esac
+		;;
+	esac
+	i=$((i+1))
+done
+uci commit firewall
 
-# ============ LAN IPv6: RA + DHCPv6 + NDP（客户端 v6 地址/网关/DNS 全自动） ============
-uci set dhcp.lan.ra='server'
-uci set dhcp.lan.dhcpv6='server'
-uci set dhcp.lan.ndp='hybrid'
+# ============ 关闭本机全部 DHCP/RA 服务（主路由负责） ============
+uci set dhcp.lan.ra='disabled'
+uci set dhcp.lan.dhcpv6='disabled'
+uci set dhcp.lan.ndp='disabled'
 uci commit dhcp
 
-# ============ dnsmasq: 全部 DNS 交给 mosdns(:5334)，不再读 resolv.conf ============
+# ============ dnsmasq：保留 DNS 服务角色，全部查询交给 mosdns ============
 uci set dhcp.@dnsmasq[0].noresolv='1'
 uci -q del_list dhcp.@dnsmasq[0].server='127.0.0.1#5334'
 uci add_list dhcp.@dnsmasq[0].server='127.0.0.1#5334'
@@ -44,9 +68,11 @@ uci commit dhcp
 uci set openclash.config.enable='1'
 # LAN DNS 走 dnsmasq->mosdns 分流，不用 OpenClash 的全量 53 劫持（避免绕过 mosdns）
 uci set openclash.config.enable_redirect_dns='0'
-# IPv6 下代理域名统一不发 AAAA（fake-ip 走 v4 栈），防 IPv6 侧泄漏
+# IPv6 下代理域名统一不发 AAAA（Fake-IP v4 栈），防 IPv6 侧泄漏
 uci set openclash.config.filter_aaaa_dns='1'
 uci set openclash.config.ipv6_enable='1'
+# 单臂旁路由：路由器自身流量也走代理，保证 mosdns/mihomo 出境路径干净
+uci set openclash.config.router_self_proxy='1'
 uci commit openclash
 
 exit 0
