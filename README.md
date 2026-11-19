@@ -147,6 +147,9 @@ dnsmasq (:53) ──全部查询──▶ mosdns (:5334)
 | IP 不泄漏 | OpenClash 透明代理接管 LAN 流量；代理域名不发 AAAA（Fake-IP v4 栈），杜绝 IPv6 直连泄漏 |
 | 无代理兜底 | OpenClash 未启动/节点失效时，mosdns 自动回退国内公共 DNS，普通上网不受影响 |
 
+> 📌 内置 DNS 重写：`time.android.com → 203.107.6.88`（阿里云国内 NTP，Android 时间同步免翻墙）。
+> 扩展重写：编辑 `/etc/mosdns/hosts.conf`，每行 `域名 IP`（域名在前），重启 mosdns 生效。
+
 ### 🚀 OpenClash 使用（三步）
 1. **OpenClash → 配置管理**：粘贴机场订阅或添加节点，点击更新
 2. **OpenClash → 配置切换**：选择节点/节点组，保存应用

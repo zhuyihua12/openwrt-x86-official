@@ -9,6 +9,13 @@ log:
   max_age: 7
 
 plugins:
+  # ---------- 静态应答（DNS 重写，命中即返回） ----------
+  - tag: static_hosts
+    type: hosts
+    args:
+      files:
+        - "/etc/mosdns/hosts.conf"
+
   # ---------- 域名集合 ----------
   - tag: direct_domains
     type: domain_set
@@ -54,6 +61,7 @@ plugins:
 
   # ---------- 主分流序列 ----------
   # 规则（自上而下）:
+  #   0. 静态应答（hosts.conf，如 time.android.com -> 203.107.6.88）
   #   1. 代理名单命中            -> 走 OpenClash
   #   2. 非国内域名（含未知域名）-> 走 OpenClash（默认出境，防 DNS 泄漏）
   #   3. 其余（国内名单/反向查询）-> 国内直连
@@ -61,6 +69,7 @@ plugins:
     type: sequence
     args:
       exec:
+        - $static_hosts
         - $cache
         - if:
             - "(query_is_domain && ! in_domain $direct_domains) || in_domain $proxy_domains"
