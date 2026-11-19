@@ -48,6 +48,16 @@ jobs:
       - name: 🛠️ 执行 DIY 脚本
         run: |
           cd $WORK_DIR
+          # 仓库 files/ 覆盖层（mosdns 配置/uci-defaults/firewall.user 等）合入构建根 files/
+          mkdir -p files
+          cp -r ${{ github.workspace }}/files/. ./files/
+          echo "--- 覆盖层文件清单 ---"
+          find files -type f | sort
+          for f in files/etc/mosdns/config.yaml files/etc/mosdns/hosts.conf \
+                   files/etc/uci-defaults/zz-ipv6-mosdns files/etc/firewall.user; do
+            [ -f "$f" ] || { echo "❌ 覆盖层缺文件: $f"; exit 1; }
+          done
+          echo "✅ 覆盖层完整"
           cp -f ${{ github.workspace }}/scripts/diy.sh .
           bash diy.sh
 
