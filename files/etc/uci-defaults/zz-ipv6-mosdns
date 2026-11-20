@@ -52,22 +52,33 @@ while uci -q get firewall.@zone[$i] >/dev/null 2>&1; do
 done
 uci commit firewall
 
-# ============ 关闭本机全部 DHCP/RA 服务（主路由负责） ============
+# ============ 关闭本机全部 DHCP 服务（主路由负责） ============
+# ignore=1 即 LuCI 的"忽略此接口"，dhcpv4 才真正不再提供 DHCP
+uci set dhcp.lan.ignore='1'
 uci set dhcp.lan.ra='disabled'
 uci set dhcp.lan.dhcpv6='disabled'
 uci set dhcp.lan.ndp='disabled'
 uci commit dhcp
 
 # ============ dnsmasq：保留 DNS 服务角色，全部查询交给 mosdns ============
+# 端口 5335 是 luci-app-mosdns 面板的监听端口（面板会自行把 dnsmasq
+# 转发到这里，此处显式设置保证首启时序确定）
 uci set dhcp.@dnsmasq[0].noresolv='1'
-uci -q del_list dhcp.@dnsmasq[0].server='127.0.0.1#5334'
-uci add_list dhcp.@dnsmasq[0].server='127.0.0.1#5334'
+uci -q del_list dhcp.@dnsmasq[0].server='127.0.0.1#5335'
+uci add_list dhcp.@dnsmasq[0].server='127.0.0.1#5335'
 uci commit dhcp
 
-# ============ mosdns LuCI 面板：启用并指向预置配置文件（不生成模板配置） ============
+# ============ mosdns：走面板原生 UCI 配置（不要对抗面板模板）============
+# 教训：面板 init 会从 UCI 重新生成 /var/etc/mosdns.json 并把 configfile
+# 改回模板产物；手写 yaml 指哪打哪的路线走不通，分流逻辑必须用面板 UCI 键表达：
+#   remote_dns=127.0.0.1:7874 -> 国外/未命中域名一律问 mihomo（OC 未启动则
+#   SERVFAIL，宁可不可达不可泄漏）；国内域名面板默认走 119.29/223.5 直连。
 uci set mosdns.config.enabled='1'
-uci set mosdns.config.configfile='/etc/mosdns/config.yaml'
+uci set mosdns.config.remote_dns='127.0.0.1:7874'
 uci commit mosdns
+# DNS 重写：time.android.com -> 203.107.6.88（面板 hosts 规则文件，
+# 由 uci-defaults 写入避免与包自带空文件的 overlay 归属冲突）
+echo "time.android.com 203.107.6.88" > /etc/mosdns/rule/hosts.txt
 
 # ============ OpenClash 预置（导入节点 -> 选节点 -> 保存应用 即可用） ============
 uci set openclash.config.enable='1'

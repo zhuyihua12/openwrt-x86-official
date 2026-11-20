@@ -136,19 +136,19 @@ qm importdisk 100 openwrt-x86-64-combined.img local-lvm
 局域网设备
    │  IPv4+IPv6 地址/网关/DNS 均由路由器 DHCP 自动下发（零配置）
    ▼
-dnsmasq (:53) ──全部查询──▶ mosdns (:5334)
-                              ├─ 国内域名名单 ──▶ 223.5.5.5 / 119.29.29.29（物理直连，不走代理）
-                              └─ 代理名单+未命中 ─▶ mihomo (:7874) ──▶ 经代理节点隧道出境
+dnsmasq (:53) ──全部查询──▶ mosdns (:5335, luci-app-mosdns 面板管理)
+                              ├─ 国内域名(geosite cn) ──▶ 223.5.5.5 / 119.29.29.29（物理直连）
+                              └─ 国外+未命中域名 ──────▶ mihomo (:7874) ──▶ 经代理节点隧道出境
 ```
 
 | 防线 | 机制 |
 |------|------|
-| DNS 不泄漏 | 代理域名解析只经 mihomo 隧道出境；未识别域名默认走代理侧（保守策略）；防火墙阻断局域网设备直连外部 53/853（v4+v6） |
+| DNS 不泄漏 | 国外/未识别域名解析只经 mihomo 隧道出境（保守策略，宁不可达不泄漏）；防火墙阻断局域网设备直连外部 53/853（v4+v6） |
 | IP 不泄漏 | OpenClash 透明代理接管 LAN 流量；代理域名不发 AAAA（Fake-IP v4 栈），杜绝 IPv6 直连泄漏 |
-| 无代理兜底 | OpenClash 未启动/节点失效时，mosdns 自动回退国内公共 DNS，普通上网不受影响 |
+| 无代理语义 | OpenClash 未启动时：国内网站照常（直连解析），国外域名解析失败（无法泄漏，符合旁路由无节点预期） |
 
 > 📌 内置 DNS 重写：`time.android.com → 203.107.6.88`（阿里云国内 NTP，Android 时间同步免翻墙）。
-> 扩展重写：编辑 `/etc/mosdns/hosts.conf`，每行 `域名 IP`（域名在前），重启 mosdns 生效。
+> 扩展重写：编辑 `/etc/mosdns/rule/hosts.txt`（LuCI 的 mosdns 面板「规则管理→Hosts」同此文件），每行 `域名 IP`（域名在前），重启 mosdns 生效。
 
 ### 🚀 OpenClash 使用（三步）
 1. **OpenClash → 配置管理**：粘贴机场订阅或添加节点，点击更新
