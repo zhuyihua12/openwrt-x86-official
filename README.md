@@ -2,183 +2,149 @@
 
 <img src="https://img.shields.io/badge/OpenWrt-v25.12.6-00B5E2?style=for-the-badge&logo=openwrt&logoColor=white" />
 <img src="https://img.shields.io/badge/Platform-x86__64-4CAF50?style=for-the-badge&logo=linux&logoColor=white" />
-<img src="https://img.shields.io/badge/Firewall-nftables%20FW4-FF6B35?style=for-the-badge" />
 <img src="https://img.shields.io/badge/OpenClash-Meta%20%E5%86%85%E6%A0%B8-9C27B0?style=for-the-badge" />
+<img src="https://img.shields.io/badge/mosdns-DNS%20%E5%89%8D%E7%BD%AE%E5%88%86%E6%B5%81-FF6B35?style=for-the-badge" />
 <img src="https://img.shields.io/badge/IPv6-DHCP%E5%85%A8%E5%BC%80-4CAF50?style=for-the-badge" />
-<img src="https://img.shields.io/github/actions/workflow/status/zhuyihua12/openwrt-x86-official/build.yml?style=for-the-badge&label=Build" />
 
 <br/><br/>
 
-# 🛡️ OpenWrt x86-64 官方源码编译固件
+# 🛡️ OpenWrt x86-64 单口旁路由固件
 
-**自动追踪 OpenWrt 官方最新稳定版 · 全中文面板 · 单网口旁路由 · 预装常用插件**
+**全中文面板 · 导入节点即用 · mosdns DNS 前置防泄漏 · IPv6 全自动**
 
-[📥 下载固件](#-固件下载) · [🚀 快速开始](#-安装指南) · [⚙️ 预装插件](#%EF%B8%8F-预装插件) · [❓ 常见问题](#-常见问题)
+[📥 下载固件](#-固件下载) · [⚡ 部署](#-部署三分钟) · [🚀 OpenClash 三步上手](#-openclash-三步上手) · [🧭 DNS 架构](#-dns-分流与防泄漏) · [❓ 常见问题](#-常见问题)
 
 </div>
 
 ---
 
-## ✨ 项目特点
+## ✨ 这个固件是什么
 
-| 特性 | 说明 |
-|------|------|
-| 🧬 **官方纯净源码** | 基于 OpenWrt Official 最新稳定版，从源码编译 |
-| 🔄 **自动追踪更新** | 每日检测 OpenWrt 官方新版本，发现更新自动编译 |
-| 🇨🇳 **全中文面板** | 所有 LuCI 插件均包含中文语言包 |
-| 🌐 **OpenClash** | 预装 Meta 内核（mihomo），已预置接管参数，导入节点即用 |
-| 🧭 **mosdns DNS 前置** | 国内外域名智能分流，DNS 全程无泄漏 |
-| 🔍 **Dnsmasq 完整版** | 替换默认版，全量转发至 mosdns，已解决与 OpenClash 冲突 |
-| 📺 **KMS 激活** | 预装 vlmcsd，自动激活 Windows / Office |
-| 🔗 **ZeroTier** | 内网穿透，随时随地访问家庭网络 |
-| 🧩 **单口旁路由** | 一根网线接入主路由 LAN；本机自动 DHCP 获取地址/网关/DNS，**不提供 DHCP 服务**（主路由负责） |
-| 🌍 **IPv6 全开** | v4+v6 地址·网关·DNS 自动从主路由获取（DHCP/DHCPv6），设备零配置 |
-| 🎯 **编译精简** | Release 仅发布 `ext4/squashfs .img.gz` + `单文件 .vmdk` 三个实用文件 |
+一块 x86-64 固件镜像，刷机后接一根网线到主路由 LAN 口，就得到一台**开箱即用的旁路由**：
+
+- 🇨🇳 **全中文**：系统界面与所有插件自带中文
+- 🌐 **OpenClash**（Meta 内核）：预置 Rule 分流 / Fake-IP / IPv6 防泄漏参数，**只需导入节点**，其它什么都不用改
+- 🧭 **mosdns DNS 前置**：国内直连、国外走代理隧道，DNS/IP **全程零泄漏**，已内置面板管理
+- 🧩 **单网口旁路由形态**：本机不提供任何 DHCP 服务，地址/网关/DNS 全部自动从主路由获取，绝不与主路由抢活
+- 🌍 **IPv6 全开**：v4 + v6 的地址、网关、DNS 全自动（DHCP/DHCPv6），接入设备零配置
+- 🔄 **持续更新**：自动追踪 OpenWrt 官方最新稳定版，有新版本自动重新编译发布
+
+预装服务：OpenClash · mosdns 面板 · ZeroTier · KMS 激活(vlmcsd) · Web 终端(ttyd) · dnsmasq-full · htop/nano/curl 等实用工具。
 
 ---
 
 ## 📥 固件下载
 
-前往 **[Releases](https://github.com/zhuyihua12/openwrt-x86-official/releases)** 页面下载最新版本。
+前往 **[Releases](https://github.com/zhuyihua12/openwrt-x86-official/releases)** 下载最新版，三个文件选一个：
 
-| 文件名 | 格式 | 适用场景 | 推荐度 |
-|----------|----------|----------|--------|
-| `openwrt-x86-64-generic-ext4-combined-efi.img.gz` | ext4 img.gz | 物理机写入 U 盘/SSD，导入 PVE/ESXi/Unraid/VirtualBox | ⭐⭐⭐⭐⭐ |
-| `openwrt-x86-64-generic-ext4-combined-efi.vmdk` | 单文件 VMDK | VMware Workstation / ESXi 直接导入 | ⭐⭐⭐⭐ |
-| `openwrt-x86-64-generic-squashfs-combined-efi.img.gz` | squashfs img.gz | 需要 extroot 扩容的场景 | ⭐⭐⭐ |
+| 文件 | 用在哪 |
+|------|--------|
+| `...ext4-combined-efi.img.gz` | **最常用**：物理机写 U 盘/SSD，或导入 PVE / ESXi / Unraid / VirtualBox |
+| `...ext4-combined-efi.vmdk` | VMware Workstation / ESXi 直接挂载单文件 |
+| `...squashfs-combined-efi.img.gz` | 需要 extroot 扩容的场景 |
 
-> 💡 每次 OpenWrt 官方发布新稳定版后，本项目会自动检测并重新编译，确保固件始终保持最新。
-
----
-
-## 🚀 安装指南
-
-### 物理机安装（U 盘 / SSD）
-
-**Windows:** 推荐 [Rufus](https://rufus.ie/) 写入。
-
-**Linux / macOS:**
-```bash
-gunzip openwrt-x86-64-combined.img.gz
-sudo dd if=openwrt-x86-64-combined.img of=/dev/sdX bs=4M status=progress && sync
-```
-> ⚠️ 将 `/dev/sdX` 替换为实际设备，此操作会清空目标设备！
-
-### 虚拟机安装（PVE）
-```bash
-gunzip openwrt-x86-64-combined.img.gz
-qm importdisk 100 openwrt-x86-64-combined.img local-lvm
-```
-> 网卡建议选择 VirtIO（PVE）或 VMXNET3（ESXi）。
-
-### VMware 直接使用
-`.vmdk` 格式可直接挂载到 VMware Workstation / ESXi 虚拟机使用。
-
-### 旁路由接线（推荐形态）
-1. 虚拟机/物理机**单一网口**接主路由 LAN（虚拟机选桥接模式）
-2. 开机后固件自动 DHCP 获取 IP，见上文「首次登录」
-3. 让设备流量经过旁路由（二选一）：
-   - **全局**：主路由 DHCP 下发的「网关 / DNS」改为旁路由 IP
-   - **按需**：仅在需要的设备上手填网关/DNS 为旁路由 IP
-4. OpenClash 导入节点、选择节点、保存应用——完成
+> 💡 写入磁盘/导入虚拟机属于通用操作（任何写镜像工具均可），不在此赘述。
 
 ---
 
-## 🔑 首次登录
+## ⚡ 部署（三分钟）
 
-本固件为**单网口旁路由**：接上主路由 LAN 口后，会自动从主路由 DHCP 获取 IP。
+### 1. 接线
 
-| 项目 | 说明 |
-|------|------|
-| 管理地址 | 主路由 DHCP 分配的 IP（在主路由终端列表中找主机名 `OpenWrt`，或 `arp -a` / `ping openwrt.lan`） |
-| 用户名 | `root` |
-| 密码 | *(空)* |
-| 主机名 | `OpenWrt` |
-| 时区 | `Asia/Shanghai (CST-8)` |
+虚拟机/物理机**只接一个网口**，插到主路由 LAN 口（虚拟机用桥接模式）。开机。
 
-> 💡 固件自身**不提供 DHCP/RA/DHCPv6 服务**，局域网地址统一由主路由分发。
-> 如需固定管理 IP，可在 LuCI「网络 → 接口 → LAN」改为静态地址。
+### 2. 找到它
 
----
+固件自动从主路由 DHCP 取 IP：在主路由终端列表找主机名 **`OpenWrt`**，或局域网内 `ping openwrt.lan`。
 
-## ⚙️ 预装插件
+### 3. 登录
 
-**🌐 网络代理**
-- `luci-app-openclash` — OpenClash Meta 内核，已预置 Rule 模式 / Fake-IP / IPv6 防泄漏参数
+浏览器打开该 IP → 用户名 `root`，密码**空** → 建议立即设置密码。
 
-**🔍 DNS 服务**
-- `mosdns` — DNS 前置分流器（已预置国内/代理双名单分流配置）
-- `dnsmasq-full` — Dnsmasq 完整版，全部查询转发 mosdns
+### 4. 让流量经过它（二选一）
 
-**🔗 网络工具**
-- `zerotier` + `luci-app-zerotier` — 内网穿透
-- `odhcp6c` / `odhcpd` / `luci-proto-ipv6` / `6in4` — IPv6 全家桶
+| 方式 | 操作 | 适合 |
+|------|------|------|
+| **全局接管** | 主路由 DHCP 下发选项里，把「网关 / DNS」改为旁路由 IP | 全家设备都走代理 |
+| **按需接管** | 只在需要的设备上手动填 网关/DNS = 旁路由 IP | 只要几台设备走 |
 
-**🖥️ 系统服务**
-- `vlmcsd` + `luci-app-vlmcsd` — KMS 激活服务器
-- `luci-app-ttyd` — Web 终端
-- `openssh-sftp-server` — SFTP 文件传输
-- `vsftpd` — FTP 服务
-
-**🛠️ 实用工具**
-- `curl` / `wget-ssl` — 命令行下载
-- `htop` — 系统监控
-- `nano` — 文本编辑器
-
-**🌍 全中文支持**
-- 所有 LuCI 插件均安装中文语言包
+> 📌 本固件**不提供 DHCP/RA/DHCPv6**，局域网地址始终由主路由分发；改主路由下发选项是唯一"全局"开关，风险可控、随时可回退。
+> 如需固定旁路由管理 IP，在 LuCI「网络 → 接口 → LAN」改静态，或在主路由做 DHCP 绑定。
 
 ---
 
-## 🧭 DNS 分流与防泄漏架构
+## 🚀 OpenClash 三步上手
+
+前提：已完成上面第 4 步（设备流量指向旁路由）。
+
+1. **服务 → OpenClash → 配置管理**：粘贴机场订阅链接（或手动添加节点），点「更新」
+2. **配置切换**：选择节点 / 节点组，保存应用
+3. **运行状态**：一键启动（固件已设开机自启内核）
+
+就这三步。**DNS / 分流 / IPv6 / 防泄漏全部已预置**，不需要打开任何其它设置页。
+
+> 启动 OpenClash 后，「插件设置 → 更新」里的内核与 GeoIP/GeoSite 数据库即可正常更新（更新流量也走代理）。
+
+---
+
+## 🧭 DNS 分流与防泄漏
 
 ```
 局域网设备
-   │  IPv4+IPv6 地址/网关/DNS 均由路由器 DHCP 自动下发（零配置）
+   │  IPv4+IPv6 地址/网关/DNS 均由主路由自动下发（零配置）
    ▼
-dnsmasq (:53) ──全部查询──▶ mosdns (:5335, luci-app-mosdns 面板管理)
-                              ├─ 国内域名(geosite cn) ──▶ 223.5.5.5 / 119.29.29.29（物理直连）
-                              └─ 国外+未命中域名 ──────▶ mihomo (:7874) ──▶ 经代理节点隧道出境
+dnsmasq (:53) ──全部查询──▶ mosdns (:5335)
+                              ├─ 国内域名(geosite cn) ──▶ 223.5.5.5 / 119.29.29.29 直连
+                              └─ 国外+未命中域名 ──────▶ mihomo (:7874) ──▶ 代理隧道出境
 ```
 
 | 防线 | 机制 |
 |------|------|
-| DNS 不泄漏 | 国外/未识别域名解析只经 mihomo 隧道出境（保守策略，宁不可达不泄漏）；防火墙阻断局域网设备直连外部 53/853（v4+v6） |
-| IP 不泄漏 | OpenClash 透明代理接管 LAN 流量；代理域名不发 AAAA（Fake-IP v4 栈），杜绝 IPv6 直连泄漏 |
-| 无代理语义 | OpenClash 未启动时：国内网站照常（直连解析），国外域名解析失败（无法泄漏，符合旁路由无节点预期） |
+| DNS 不泄漏 | 国外/未识别域名解析只走 mihomo 隧道（宁可不解析也不泄漏）；防火墙阻断设备直连外部 53/853（v4+v6） |
+| IP 不泄漏 | OpenClash 透明代理接管流量；代理域名不发 AAAA（Fake-IP v4 栈），杜绝 IPv6 直连泄漏 |
+| 无代理语义 | OpenClash 未启动时：国内网站照常，国外域名解析失败——这是防泄漏的预期行为，不是故障 |
 
-> 📌 内置 DNS 重写：`time.android.com → 203.107.6.88`（阿里云国内 NTP，Android 时间同步免翻墙）。
-> 扩展重写：编辑 `/etc/mosdns/rule/hosts.txt`（LuCI 的 mosdns 面板「规则管理→Hosts」同此文件），每行 `域名 IP`（域名在前），重启 mosdns 生效。
+### 常用维护（都在 LuCI 里点）
 
-### 🚀 OpenClash 使用（三步）
-1. **OpenClash → 配置管理**：粘贴机场订阅或添加节点，点击更新
-2. **OpenClash → 配置切换**：选择节点/节点组，保存应用
-3. **首页开关**：一键启动（固件已默认 `enable=1`，开机自启内核）
-
-> 分流模式已预置为 **Rule 规则分流**；DNS 已由 mosdns 全链路配好，**无需再改任何 DNS 设置**。
+- **DNS 分流面板**：服务 → mosdns —— 广告屏蔽、黑白名单、Geo 数据更新都在这
+- **DNS 重写**：固件内置 `time.android.com → 203.107.6.88`（Android 时间同步免翻墙）。加自己的规则：mosdns 面板「规则管理 → Hosts」，每行 `域名 IP`（域名在前）
+- **KMS 激活**：预装 vlmcsd，局域网设备 Windows/Office 自动激活，无需配置
+- **ZeroTier**：服务 → ZeroTier，加入网络 ID 即可远程回家
 
 ---
 
-## 🔄 自动构建机制
+## ❓ 常见问题
 
-本项目的构建策略是 **智能追踪，有更新才编译**：
+**Q：刷完机后台在哪？**
+主路由终端列表找 `OpenWrt`，或局域网 `ping openwrt.lan`。固件不提供固定 IP（旁路由形态由主路由分发）。
+
+**Q：OpenClash 没启动，国外网站打不开？**
+预期行为——国外域名的 DNS 被故意交给代理隧道（防泄漏），没节点就没解析。国内网站不受影响。
+
+**Q：更新 GeoIP / 内核 / 广告规则失败？**
+先确认 OpenClash 已导入节点并启动（更新需要代理出境）；再确认设备流量已指向旁路由（第 4 步）。
+
+**Q：和主路由会不会冲突？**
+不会。本固件 DHCP/RA/DHCPv6/NDP 全部关闭，不发布任何 DHCP；主路由瘫痪时局域网设备也不受影响（只是不走代理）。
+
+**Q：想升级版本？**
+Releases 下载新镜像直接刷机；同版本系列可 sysupgrade 保留配置（跨大版本建议干净重刷）。
+
+**Q：主路由不能改设置怎么办？**
+用「按需接管」：个别设备上手动把网关/DNS 填成旁路由 IP 即可，其它设备保持原样。
+
+---
+
+## 🔄 固件如何保持最新
 
 ```mermaid
 flowchart TD
     A[每天 10:00 北京时间] --> B{检测 OpenWrt 官方<br>最新稳定版 tag}
-    B -->|有新版| C[更新 configs/openwrt.version]
-    C --> D[触发 GitHub Actions 编译]
-    D --> E[发布固件到 Releases]
-    B -->|无新版| F[跳过，不浪费资源]
+    B -->|有新版| C[触发 GitHub Actions 编译]
+    C --> D[四层验收：配置断言 → 覆盖层断言<br>→ manifest 断言 → 产物断言]
+    D --> E[发布到 Releases]
+    B -->|无新版| F[跳过]
 ```
-
-| 触发方式 | 说明 |
-|----------|------|
-| 🤖 **智能检测** | 每日 10:00 自动检查 OpenWrt 官方是否有新稳定版 |
-| 🖱️ **手动触发** | 需要时可通过 Workflow Dispatch 手动编译 |
-| ⏰ ~~定时编译~~ | ~~已移除，改为按需编译~~ |
-
-> 🎯 只有在 OpenWrt 官方发布新稳定版时才会触发编译，避免频繁无意义的构建。
 
 ---
 
@@ -191,7 +157,7 @@ flowchart TD
 
 <div align="center">
 
-如果这个项目对您有帮助，请点一个 ⭐ **Star** 支持一下！
+如果这个固件对您有帮助，请点一个 ⭐ **Star** 支持一下！
 
 Made with ❤️ by [zhuyihua12](https://github.com/zhuyihua12)
 
