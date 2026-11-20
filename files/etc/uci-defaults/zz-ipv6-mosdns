@@ -64,6 +64,11 @@ uci -q del_list dhcp.@dnsmasq[0].server='127.0.0.1#5334'
 uci add_list dhcp.@dnsmasq[0].server='127.0.0.1#5334'
 uci commit dhcp
 
+# ============ mosdns LuCI 面板：启用并指向预置配置文件（不生成模板配置） ============
+uci set mosdns.config.enabled='1'
+uci set mosdns.config.configfile='/etc/mosdns/config.yaml'
+uci commit mosdns
+
 # ============ OpenClash 预置（导入节点 -> 选节点 -> 保存应用 即可用） ============
 uci set openclash.config.enable='1'
 # LAN DNS 走 dnsmasq->mosdns 分流，不用 OpenClash 的全量 53 劫持（避免绕过 mosdns）
