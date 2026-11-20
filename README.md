@@ -137,14 +137,9 @@ Releases 下载新镜像直接刷机；同版本系列可 sysupgrade 保留配�
 
 ## 🔄 固件如何保持最新
 
-```mermaid
-flowchart TD
-    A[每天 10:00 北京时间] --> B{检测 OpenWrt 官方<br>最新稳定版 tag}
-    B -->|有新版| C[触发 GitHub Actions 编译]
-    C --> D[四层验收：配置断言 → 覆盖层断言<br>→ manifest 断言 → 产物断言]
-    D --> E[发布到 Releases]
-    B -->|无新版| F[跳过]
-```
+![自动构建小剧场](docs/images/auto-build.svg)
+
+> 每天上午十点例行巡逻：官方出新稳定版才抡锤编译、上架 Releases；没有新版就回被窝，绝不浪费 GitHub 资源。也可在 Actions 页面手动触发一次「巡逻」。
 
 ---
 
