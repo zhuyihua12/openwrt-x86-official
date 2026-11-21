@@ -89,6 +89,15 @@ uci set openclash.config.filter_aaaa_dns='1'
 uci set openclash.config.ipv6_enable='1'
 # 单臂旁路由：路由器自身流量也走代理，保证 mosdns/mihomo 出境路径干净
 uci set openclash.config.router_self_proxy='1'
+# 25.12 实测修复①：OpenClash 0.48 启动脚本找的内核文件名是 core/clash_meta，
+# 而 feed 打包的内核名为 core/mihomo——不建链接则"Core not Detected"→尝试联网
+# 下载内核→境外不可达→主开关被自动回写 0，表现为"内核下载失败后自启即关"
+[ -f /etc/openclash/core/mihomo ] && [ ! -e /etc/openclash/core/clash_meta ] && \
+	ln -sf /etc/openclash/core/mihomo /etc/openclash/core/clash_meta
+# 25.12 实测修复②：LAN 为 DHCP 客户端（无静态 ipaddr）时，OpenClash 的 LAN IP
+# 探测链在"pipeline 空值仍成功"处短路，报"LAN IP Address Get Error"拒绝启动；
+# 显式指定接口名走 ip address show 分支
+uci set openclash.config.lan_interface_name='br-lan'
 uci commit openclash
 
 exit 0

@@ -150,6 +150,13 @@ dnsmasq (:53) ──全部查询──▶ mosdns (:5335)
 **Q：OpenClash 提示"内核下载失败 / 版本检查 network_error"？**
 无需理会——固件编译打包时已内置最新 Meta 内核（mihomo，构建日随 feed 更新），不需要联网下载内核。红字只是面板去 GitHub 检查"有没有更新版"失败而已，不影响使用。只有想升级内核时才需要：代理跑起来后再点下载（走隧道即可成功），或电脑下载后手动上传替换。
 
+**Q：OpenClash 打开后自动关闭、日志报"LAN IP Address Get Error"或内核检测失败？（b170 及更早版本）**
+b171 起已修复。老版本手动执行两条命令即可（SSH 登录后）：
+```sh
+ln -sf /etc/openclash/core/mihomo /etc/openclash/core/clash_meta
+uci set openclash.config.lan_interface_name='br-lan' && uci commit openclash
+```
+
 **Q：更新 GeoIP / 内核 / 广告规则失败？**
 先确认 OpenClash 已导入节点并启动（更新需要代理出境）；再确认设备流量已指向旁路由（第 4 步）。
 
