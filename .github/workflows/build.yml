@@ -64,6 +64,8 @@ jobs:
             || { echo "❌ uci-defaults 缺 ZeroTier zt* 通配接口"; exit 1; }
           grep -q "9993" files/etc/openclash/custom/openclash_custom_firewall_rules.sh \
             || { echo "❌ OpenClash 定制脚本缺 ZeroTier 免劫持规则"; exit 1; }
+          grep -q 'masquerade' files/etc/firewall.zt-masq.nft \
+            || { echo "❌ 缺 ZeroTier→lan NAT nft 片段"; exit 1; }
           echo "✅ 覆盖层完整"
           cp -f ${{ github.workspace }}/scripts/diy.sh .
           bash diy.sh

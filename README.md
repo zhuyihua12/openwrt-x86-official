@@ -151,11 +151,12 @@
 
 ### 本固件已替你做好的（最新固件内置，零手动配置）
 
-- **防火墙**：ZeroTier 随机网卡名（`zt*`）自动并入 lan 防火墙区——远程即可访问整个内网，不用手建接口和放行规则
+- **防火墙**：ZeroTier 独立防火墙区——随机网卡名（`zt*`）自动放行，远程可访问路由器与整个内网
+- **NAT 回程**：ZeroTier→内网流量自动伪装成旁路由 IP，内网设备无需知道 ZeroTier 网段的存在（旧版"能连路由器连不上设备"的问题已根治）
 - **与 OpenClash 和平共处**：自动给 UDP 9993（ZeroTier 打洞端口）加免劫持白名单，透明代理开着也能打洞直连，不掉线不绕路
 - 出厂自带的示例网络 `earth`（会偷偷自动加入陌生网络）已移除
 
-> 若你用的还是 2026-11-21 之前编译的旧版（b170 及更早），需手动补两处，见下方「常见问题」。
+> 若你用的还是旧版固件，见下方「常见问题」的一次性修复命令。
 
 ---
 
@@ -210,19 +211,15 @@ ln -sf /etc/openclash/core/mihomo /etc/openclash/core/clash_meta
 uci set openclash.config.lan_interface_name='br-lan' && uci commit openclash
 ```
 
-**Q：ZeroTier 加入了 ID，但远程 ping 不通家里设备 / 连上就掉线？（b170 及更早版本）**
-b170 及更早版本需手动补一次，新版固件全自动。老版本 SSH 执行（一次性）：
+**Q：ZeroTier 能访问旁路由本身，但 ping / 访问不了局域网其它设备？（b173 之前的版本都有此问题）**
+旁路由场景的固有不对称路由：你的包经旁路由进了内网，但内网设备的回程走主路由，主路由不认识 ZeroTier 网段直接丢包。新版固件已自动给 ZeroTier→内网流量做 NAT（内网设备只看到旁路由的 IP，无需任何路由配置）。老版本 SSH 一次性修复：
 ```sh
-# 1. 把 zt* 随机网卡并入 lan 防火墙区（ZT 网卡名是随机哈希，只能通配）
-uci set network.zerotier=interface; uci set network.zerotier.proto='none'; uci set network.zerotier.ifname='zt*'
-uci add_list firewall.@zone[0].network='zerotier'; uci commit network firewall; ifup zerotier; /etc/init.d/firewall restart
-# 2. OpenClash 不再劫持 ZeroTier 打洞 UDP（立即生效 + 写进脚本防重启丢失）
-for c in openclash_mangle openclash_mangle_v6; do
-  nft insert rule inet fw4 $c meta l4proto udp udp sport 9993 return
-  nft insert rule inet fw4 $c meta l4proto udp udp dport 9993 return
-done
+printf '%s\n' 'chain postrouting {' '    iifname "zt*" oifname "br-lan" counter masquerade' '}' > /etc/firewall.zt-masq.nft
+uci set firewall.zt_nat_include=include
+uci set firewall.zt_nat_include.type=nft
+uci set firewall.zt_nat_include.path=/etc/firewall.zt-masq.nft
+uci commit firewall && /etc/init.d/firewall restart
 ```
-另检查两件事：控制台该设备是否勾了 **Auth** 并 **SAVE**；ZeroTier 网段是否与 `192.168.10.0/24` 重叠。
 
 **Q：更新 GeoIP / 内核 / 广告规则失败？**
 先确认 OpenClash 已导入节点并启动（更新需要代理出境）；再确认设备流量已指向旁路由（第 4 步）。

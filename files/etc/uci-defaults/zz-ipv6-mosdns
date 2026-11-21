@@ -111,20 +111,29 @@ uci set network.zerotier='interface'
 uci set network.zerotier.proto='none'
 uci set network.zerotier.ifname='zt*'
 uci commit network
-# 将 zt* 纳入 lan 防火墙区：远程节点即可访问路由器与整个内网
-i=0
-while uci -q get firewall.@zone[$i] >/dev/null 2>&1; do
-	nets=$(uci -q get firewall.@zone[$i].network)
-	case " $nets " in
-	*" lan "*)
-		case " $nets " in
-		*" zerotier "*) ;;
-		*) uci add_list firewall.@zone[$i].network='zerotier' ;;
-		esac
-		;;
-	esac
-	i=$((i+1))
-done
+# 将 ZeroTier 设为独立防火墙区：input 放行（可访问路由器）、forward 与 lan
+# 互通；zt→br-lan 方向的 NAT 由 /etc/firewall.zt-masq.nft 提供（见下）——
+# 内网设备的默认网关是主路由而非本机，回程包不认识 ZT 网段，不 NAT 则
+# "ping 通路由器却 ping 不通内网设备"（旁路由场景的固有不对称路由）
+uci -q del_list firewall.@zone[0].network='zerotier'
+uci -q delete firewall.zerotier
+uci set firewall.zerotier='zone'
+uci set firewall.zerotier.name='zerotier'
+uci set firewall.zerotier.network='zerotier'
+uci set firewall.zerotier.input='ACCEPT'
+uci set firewall.zerotier.output='ACCEPT'
+uci set firewall.zerotier.forward='ACCEPT'
+uci set firewall.zt_fwd_lan='forwarding'
+uci set firewall.zt_fwd_lan.src='zerotier'
+uci set firewall.zt_fwd_lan.dest='lan'
+uci set firewall.lan_fwd_zt='forwarding'
+uci set firewall.lan_fwd_zt.src='lan'
+uci set firewall.lan_fwd_zt.dest='zerotier'
+# nft include（fw4 把文件内容插进 table inet fw4 内部，片段只写到 chain 层）
+uci -q delete firewall.zt_nat_include
+uci set firewall.zt_nat_include='include'
+uci set firewall.zt_nat_include.type='nft'
+uci set firewall.zt_nat_include.path='/etc/firewall.zt-masq.nft'
 uci commit firewall
 
 exit 0

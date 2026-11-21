@@ -1,0 +1,3 @@
+chain postrouting {
+    iifname "zt*" oifname "br-lan" counter masquerade comment "zerotier-to-lan-nat"
+}
