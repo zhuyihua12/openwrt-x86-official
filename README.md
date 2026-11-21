@@ -214,12 +214,13 @@ uci set openclash.config.lan_interface_name='br-lan' && uci commit openclash
 **Q：ZeroTier 能访问旁路由本身，但 ping / 访问不了局域网其它设备？（b173 之前的版本都有此问题）**
 旁路由场景的固有不对称路由：你的包经旁路由进了内网，但内网设备的回程走主路由，主路由不认识 ZeroTier 网段直接丢包。新版固件已自动给 ZeroTier→内网流量做 NAT（内网设备只看到旁路由的 IP，无需任何路由配置）。老版本 SSH 一次性修复：
 ```sh
-printf '%s\n' 'chain postrouting {' '    iifname "zt*" oifname "br-lan" counter masquerade' '}' > /etc/firewall.zt-masq.nft
+printf '%s\n' 'chain srcnat {' '    iifname "zt*" oifname "br-lan" counter masquerade' '}' > /etc/firewall.zt-masq.nft
 uci set firewall.zt_nat_include=include
 uci set firewall.zt_nat_include.type=nft
 uci set firewall.zt_nat_include.path=/etc/firewall.zt-masq.nft
-uci commit firewall && /etc/init.d/firewall restart
+uci commit firewall && /etc/init.d/firewall restart && conntrack -F
 ```
+（注意：nft include 片段必须写进 fw4 真正挂 hook 的 `chain srcnat`，自己新起 `chain postrouting` 是无 hook 死链，规则永远不会执行。）
 
 **Q：更新 GeoIP / 内核 / 广告规则失败？**
 先确认 OpenClash 已导入节点并启动（更新需要代理出境）；再确认设备流量已指向旁路由（第 4 步）。

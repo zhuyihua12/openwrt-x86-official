@@ -129,7 +129,8 @@ uci set firewall.zt_fwd_lan.dest='lan'
 uci set firewall.lan_fwd_zt='forwarding'
 uci set firewall.lan_fwd_zt.src='lan'
 uci set firewall.lan_fwd_zt.dest='zerotier'
-# nft include（fw4 把文件内容插进 table inet fw4 内部，片段只写到 chain 层）
+# nft include（fw4 把文件内容插进 table inet fw4 内部，片段只写到 chain 层；
+# 且必须写进 fw4 真正挂 hook 的 chain srcnat——自己新起链名是无 hook 死链）
 uci -q delete firewall.zt_nat_include
 uci set firewall.zt_nat_include='include'
 uci set firewall.zt_nat_include.type='nft'
