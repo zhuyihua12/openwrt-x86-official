@@ -53,13 +53,17 @@ jobs:
           cp -r ${{ github.workspace }}/files/. ./files/
           echo "--- 覆盖层文件清单 ---"
           find files -type f | sort
-          for f in files/etc/uci-defaults/zz-ipv6-mosdns files/etc/firewall.user; do
+          for f in files/etc/uci-defaults/zz-ipv6-mosdns files/etc/firewall.user files/etc/openclash/custom/openclash_custom_firewall_rules.sh; do
             [ -f "$f" ] || { echo "❌ 覆盖层缺文件: $f"; exit 1; }
           done
           grep -q "remote_dns='127.0.0.1:7874'" files/etc/uci-defaults/zz-ipv6-mosdns \
             || { echo "❌ uci-defaults 缺 mosdns remote_dns 分流键"; exit 1; }
           grep -q "dhcp.lan.ignore='1'" files/etc/uci-defaults/zz-ipv6-mosdns \
             || { echo "❌ uci-defaults 缺 LAN DHCP 忽略键"; exit 1; }
+          grep -q "ifname='zt\*'" files/etc/uci-defaults/zz-ipv6-mosdns \
+            || { echo "❌ uci-defaults 缺 ZeroTier zt* 通配接口"; exit 1; }
+          grep -q "9993" files/etc/openclash/custom/openclash_custom_firewall_rules.sh \
+            || { echo "❌ OpenClash 定制脚本缺 ZeroTier 免劫持规则"; exit 1; }
           echo "✅ 覆盖层完整"
           cp -f ${{ github.workspace }}/scripts/diy.sh .
           bash diy.sh

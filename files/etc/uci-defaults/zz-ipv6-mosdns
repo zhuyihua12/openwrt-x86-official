@@ -100,4 +100,31 @@ uci set openclash.config.router_self_proxy='1'
 uci set openclash.config.lan_interface_name='br-lan'
 uci commit openclash
 
+# ============ ZeroTier 远程接入预置 ============
+uci set zerotier.@zerotier[0].enabled='1'
+# 删除包自带示例网络 earth——它会随服务启动自动加入陌生网络，纯属隐患
+uci -q delete zerotier.earth
+# ZT 虚拟网卡名是哈希随机值(如 ztonktpvpd)，无法预知，防火墙挂载只能用 zt* 通配；
+# proto none 逻辑接口不管理 IP（ZT 守护进程自管），仅作为防火墙分区的载体
+uci -q delete network.zerotier
+uci set network.zerotier='interface'
+uci set network.zerotier.proto='none'
+uci set network.zerotier.ifname='zt*'
+uci commit network
+# 将 zt* 纳入 lan 防火墙区：远程节点即可访问路由器与整个内网
+i=0
+while uci -q get firewall.@zone[$i] >/dev/null 2>&1; do
+	nets=$(uci -q get firewall.@zone[$i].network)
+	case " $nets " in
+	*" lan "*)
+		case " $nets " in
+		*" zerotier "*) ;;
+		*) uci add_list firewall.@zone[$i].network='zerotier' ;;
+		esac
+		;;
+	esac
+	i=$((i+1))
+done
+uci commit firewall
+
 exit 0

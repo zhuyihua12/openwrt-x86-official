@@ -106,6 +106,59 @@
 
 ---
 
+## 🌙 ZeroTier 远程接入（人在外地，心在家里）
+
+出差路上想看家里的 NAS、给父母远程修路由器后台？ZeroTier 不需要公网 IP、不用端口转发，装好即用。**先看动画面板，再对照下面步骤做**：
+
+![ZeroTier 接入四步演示动画](docs/images/zerotier-guide.svg)
+
+### 准备：拿到你的网络 ID
+
+到 <https://my.zerotier.com> 注册（GitHub 账号可直接登）→ **CREATE A NETWORK** → 得到一个 **16 位网络 ID**（如 `8056c2e21c000001`），这就是"家庭频道号"，所有要互联的设备都加入它。
+
+### 第①步 · 路由器加入网络
+
+**服务 → ZeroTier → 配置** 页：
+
+1. 「全局设置」确认 **已启用**（最新固件默认已启用）
+2. 「网络配置」→ 右上 **添加** → 名称随意、**网络 ID** 填你的 16 位 ID → 保持"启用"和"允许托管 IP"勾选 → **保存并应用**
+
+### 第②步 · 控制台授权（最容易漏的一步！）
+
+回 `my.zerotier.com` → 你的网络 → **Members** 列表里出现一个新节点（名字是你的路由器，状态 UNKNOWN）：
+
+1. 勾选该行的 **Auth**（授权）
+2. 建议点该行右侧 ✎ 展开，在 **Managed IPs** 给它填一个固定 IP，如 `10.99.0.7`（后面访问就用它）
+3. **拉到底点 SAVE** —— 不点 SAVE 等于没授权
+
+> [!WARNING]
+> ZeroTier 网络默认分配的网段可能撞车。**别让 ZeroTier 网段和家里 `192.168.10.0/24` 重叠**——在控制台 **IPv4 Auto-Assign → Manually Assign Pool** 里设成 `10.99.0.0/24` 这类不冲突的段。
+
+### 第③步 · 你的手机 / 笔记本加入
+
+手机装 **ZeroTier One**（App Store / 各应用市场搜 ZeroTier），笔记本装官方客户端：
+
+1. 填同一个 16 位网络 ID → **Join**
+2. **回到网页控制台，把这台新设备也勾 Auth + SAVE**（每台设备都要单独授权）
+
+### 第④步 · 开始用
+
+设备状态变 **OK / READY** 后，在外地任意网络下：
+
+- 访问家里设备：直接输 `10.99.0.x`（ZeroTier 分配的 IP）
+- 访问旁路由后台 / OpenClash 面板：`http://10.99.0.7`（第②步填的那个）
+- 访问家里其它设备：旁路由已把 ZeroTier 流量接入 lan 转发，`ping 192.168.10.x` 同样通
+
+### 本固件已替你做好的（最新固件内置，零手动配置）
+
+- **防火墙**：ZeroTier 随机网卡名（`zt*`）自动并入 lan 防火墙区——远程即可访问整个内网，不用手建接口和放行规则
+- **与 OpenClash 和平共处**：自动给 UDP 9993（ZeroTier 打洞端口）加免劫持白名单，透明代理开着也能打洞直连，不掉线不绕路
+- 出厂自带的示例网络 `earth`（会偷偷自动加入陌生网络）已移除
+
+> 若你用的还是 2026-11-21 之前编译的旧版（b170 及更早），需手动补两处，见下方「常见问题」。
+
+---
+
 ## 🧭 DNS 分流与防泄漏
 
 ```
@@ -128,7 +181,7 @@ dnsmasq (:53) ──全部查询──▶ mosdns (:5335)
 - **DNS 分流面板**：服务 → mosdns —— 广告屏蔽、黑白名单、Geo 数据更新都在这
 - **DNS 重写**：固件内置 `time.android.com → 203.107.6.88`（Android 时间同步免翻墙）。加自己的规则：mosdns 面板「规则管理 → Hosts」，每行 `域名 IP`（域名在前）
 - **KMS 激活**：预装 vlmcsd，局域网设备 Windows/Office 自动激活，无需配置
-- **ZeroTier**：服务 → ZeroTier，加入网络 ID 即可远程回家
+- **ZeroTier**：服务 → ZeroTier，四步远程回家（详见上文「ZeroTier 远程接入」章节）
 
 ---
 
@@ -151,11 +204,25 @@ dnsmasq (:53) ──全部查询──▶ mosdns (:5335)
 无需理会——固件编译打包时已内置最新 Meta 内核（mihomo，构建日随 feed 更新），不需要联网下载内核。红字只是面板去 GitHub 检查"有没有更新版"失败而已，不影响使用。只有想升级内核时才需要：代理跑起来后再点下载（走隧道即可成功），或电脑下载后手动上传替换。
 
 **Q：OpenClash 打开后自动关闭、日志报"LAN IP Address Get Error"或内核检测失败？（b170 及更早版本）**
-b171 起已修复。老版本手动执行两条命令即可（SSH 登录后）：
+新版固件已修复。b170 及更早版本手动执行两条命令即可（SSH 登录后）：
 ```sh
 ln -sf /etc/openclash/core/mihomo /etc/openclash/core/clash_meta
 uci set openclash.config.lan_interface_name='br-lan' && uci commit openclash
 ```
+
+**Q：ZeroTier 加入了 ID，但远程 ping 不通家里设备 / 连上就掉线？（b170 及更早版本）**
+b170 及更早版本需手动补一次，新版固件全自动。老版本 SSH 执行（一次性）：
+```sh
+# 1. 把 zt* 随机网卡并入 lan 防火墙区（ZT 网卡名是随机哈希，只能通配）
+uci set network.zerotier=interface; uci set network.zerotier.proto='none'; uci set network.zerotier.ifname='zt*'
+uci add_list firewall.@zone[0].network='zerotier'; uci commit network firewall; ifup zerotier; /etc/init.d/firewall restart
+# 2. OpenClash 不再劫持 ZeroTier 打洞 UDP（立即生效 + 写进脚本防重启丢失）
+for c in openclash_mangle openclash_mangle_v6; do
+  nft insert rule inet fw4 $c meta l4proto udp udp sport 9993 return
+  nft insert rule inet fw4 $c meta l4proto udp udp dport 9993 return
+done
+```
+另检查两件事：控制台该设备是否勾了 **Auth** 并 **SAVE**；ZeroTier 网段是否与 `192.168.10.0/24` 重叠。
 
 **Q：更新 GeoIP / 内核 / 广告规则失败？**
 先确认 OpenClash 已导入节点并启动（更新需要代理出境）；再确认设备流量已指向旁路由（第 4 步）。
