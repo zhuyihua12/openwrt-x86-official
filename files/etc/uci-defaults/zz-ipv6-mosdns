@@ -98,6 +98,9 @@ uci set openclash.config.router_self_proxy='1'
 # 探测链在"pipeline 空值仍成功"处短路，报"LAN IP Address Get Error"拒绝启动；
 # 显式指定接口名走 ip address show 分支
 uci set openclash.config.lan_interface_name='br-lan'
+# 用户要求：固件默认 TUN 模式接管（fake-ip-tun），免手动切换；
+# 25.12 实机验证 utun 口(faker-ip 段)正常拉起
+uci set openclash.config.en_mode='fake-ip-tun'
 # 25.12 实测修复③：LAN 是 DHCP 客户端，冷启动时 S99openclash 跑在 DHCP 拿到地址
 # 之前，ip address show br-lan 为空 → 同样报 "LAN IP Address Get Error" 自关
 # （修复②只解决探测逻辑，解决不了时序）。延迟 30 秒启动让 DHCP 客户端先完成
