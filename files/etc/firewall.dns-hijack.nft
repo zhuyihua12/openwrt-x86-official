@@ -1,0 +1,8 @@
+chain dns_hijack_nat {
+	type nat hook prerouting priority dstnat; policy accept;
+	iifname { "br-lan", "zt*" } meta l4proto { tcp, udp } th dport 53 counter redirect comment "dns-hijack-to-self"
+}
+chain dns_dot_block {
+	type filter hook forward priority -500; policy accept;
+	iifname { "br-lan", "zt*" } meta l4proto tcp th dport 853 counter drop comment "block-dns-over-tls"
+}

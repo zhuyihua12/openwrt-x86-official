@@ -139,6 +139,12 @@ uci -q delete firewall.zt_nat_include
 uci set firewall.zt_nat_include='include'
 uci set firewall.zt_nat_include.type='nft'
 uci set firewall.zt_nat_include.path='/etc/firewall.zt-masq.nft'
+# DNS 透明劫持 + DoT 封锁（nft include；注意：链名不能叫 dnat——撞 nft
+# 关键字且 fw4 不预建 dnat 链，必须自建带 type nat hook prerouting 的链）
+uci -q delete firewall.dns_hijack
+uci set firewall.dns_hijack='include'
+uci set firewall.dns_hijack.type='nft'
+uci set firewall.dns_hijack.path='/etc/firewall.dns-hijack.nft'
 uci commit firewall
 
 exit 0
