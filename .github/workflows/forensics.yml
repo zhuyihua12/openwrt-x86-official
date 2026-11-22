@@ -1,0 +1,42 @@
+name: Forensics on release
+# 独立取证：对指定 release 的真实产物做 squashfs 解包断言（与 build 解耦，随时可重跑）
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'release tag，如 v2026.11.22-b181'
+        required: true
+
+jobs:
+  forensics:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: 📥 下载产物
+        run: |
+          sudo apt-get update && sudo apt-get install -y squashfs-tools file
+          gh release download "${{ inputs.tag }}" -p '*.img.gz' -D dl
+          ls -l dl
+          gunzip dl/*.img.gz
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: 🔬 squashfs 解包断言
+        run: |
+          set -euo pipefail
+          IMG=$(ls dl/*.img)
+          # 从镜像中截取 squashfs 区（找 hsqs 魔数起）
+          OFF=$(grep -abo hsqs "$IMG" | head -1 | cut -d: -f1)
+          dd if="$IMG" bs=1 skip="$OFF" of=rootfs.sqsh status=none
+          unsquashfs -d sq rootfs.sqsh >/dev/null
+          cd sq
+          fail=0
+          chk(){ if eval "$2"; then echo "✅ $1"; else echo "❌ $1"; fail=1; fi; }
+          chk "mosdns 二进制"        '[ -f usr/bin/mosdns ]'
+          chk "zerotier 守护"        'ls usr/sbin/zerotier-one* >/dev/null || ls usr/bin/zerotier-one* >/dev/null'
+          chk "openclash 主脚本"     '[ -f usr/bin/openclash ] || [ -f usr/share/openclash/openclash.sh ]'
+          chk "中文语言包(lmo)"      'ls usr/lib/lua/*/luci-i18n-base-zh-cn.lmo >/dev/null 2>&1 || ls usr/share/luci/i18n/*zh-cn* >/dev/null 2>&1 || find . -name "*zh-cn*" | grep -q .'
+          chk "ZT 双向 NAT 片段"     'grep -q zerotier-to-lan-nat etc/firewall.zt-masq.nft && grep -q lan-to-zerotier-nat etc/firewall.zt-masq.nft'
+          chk "DNS 透明劫持 nft"     'grep -q dns-hijack-to-self etc/firewall.dns-hijack.nft'
+          chk "uci-defaults 装配"    'grep -q "remote_dns=.127.0.0.1:7874" etc/uci-defaults/zz-ipv6-mosdns && grep -q "delay_start=.30" etc/uci-defaults/zz-ipv6-mosdns && grep -q "fake-ip-tun" etc/uci-defaults/zz-ipv6-mosdns'
+          chk "LAN DHCP 忽略"        'grep -q "dhcp.lan.ignore" etc/uci-defaults/zz-ipv6-mosdns'
+          chk "无 ext4 残留(本应为空)" '! test -f ../dl/openwrt-x86-64-generic-ext4-combined-efi.img'
+          echo; [ $fail = 0 ] && echo "🎉 取证全部通过" || { echo "💥 有断言失败"; exit 1; }
