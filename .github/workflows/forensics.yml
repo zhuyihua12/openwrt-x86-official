@@ -25,7 +25,7 @@ jobs:
           IMG=$(ls dl/*.img)
           # 从镜像中截取 squashfs 区（找 hsqs 魔数起）
           OFF=$(grep -abo hsqs "$IMG" | head -1 | cut -d: -f1)
-          dd if="$IMG" bs=1 skip="$OFF" of=rootfs.sqsh status=none
+          dd if="$IMG" of=rootfs.sqsh bs=1M skip="$OFF" iflag=skip_bytes status=none
           unsquashfs -d sq rootfs.sqsh >/dev/null
           cd sq
           fail=0
