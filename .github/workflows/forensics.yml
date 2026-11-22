@@ -33,7 +33,8 @@ jobs:
           chk "mosdns 二进制"        '[ -f usr/bin/mosdns ]'
           chk "zerotier 守护"        'ls usr/sbin/zerotier-one* >/dev/null || ls usr/bin/zerotier-one* >/dev/null'
           chk "openclash 主脚本"     '[ -f usr/bin/openclash ] || [ -f usr/share/openclash/openclash.sh ]'
-          chk "中文语言包(lmo)"      'ls usr/lib/lua/*/luci-i18n-base-zh-cn.lmo >/dev/null 2>&1 || ls usr/share/luci/i18n/*zh-cn* >/dev/null 2>&1 || find . -name "*zh-cn*" | grep -q .'
+          echo "--- i18n 文件诊断 ---"; find . -path '*i18n*' | head -10
+          chk "中文语言包(lmo)"      'find . -name "*.lmo" | grep -qiE "zh[-_]"'
           chk "ZT 双向 NAT 片段"     'grep -q zerotier-to-lan-nat etc/firewall.zt-masq.nft && grep -q lan-to-zerotier-nat etc/firewall.zt-masq.nft'
           chk "DNS 透明劫持 nft"     'grep -q dns-hijack-to-self etc/firewall.dns-hijack.nft'
           chk "uci-defaults 装配"    'grep -q "remote_dns=.127.0.0.1:7874" etc/uci-defaults/zz-ipv6-mosdns && grep -q "delay_start=.30" etc/uci-defaults/zz-ipv6-mosdns && grep -q "fake-ip-tun" etc/uci-defaults/zz-ipv6-mosdns'
