@@ -36,7 +36,7 @@
 
 ## 📥 固件下载
 
-前往 **[Releases](https://github.com/zhuyihua12/openwrt-x86-official/releases)** 下载最新版，三个文件选一个：
+前往 **[Releases](https://github.com/zhuyihua12/openwrt-x86-official/releases)** 下载最新版，两个文件选一个：
 
 | 文件 | 用在哪 |
 |------|--------|
@@ -47,6 +47,9 @@
 > 且后续升级可在 LuCI 里 sysupgrade 原地保留配置（ext4 版两者都做不到）。
 
 > 💡 写入磁盘/导入虚拟机属于通用操作（任何写镜像工具均可），不在此赘述。
+
+> 🖥️ 想在自己的 **Ubuntu 服务器**上自建编译机（防火墙内/官方源不通也可用）：
+> 见 [deploy/DEPLOY.md](deploy/DEPLOY.md) 一键部署指南。
 
 ---
 
