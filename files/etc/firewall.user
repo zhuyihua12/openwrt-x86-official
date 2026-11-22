@@ -3,6 +3,6 @@
 # /etc/firewall.dns-hijack.nft（fw4 include 注册，见 uci-defaults）。
 # 原因：25.12 镜像实测 iptables 命令静默失败（nft ruleset 0 条命中）——
 # "以为有防火墙规则"比没规则更危险。
-# 新方案：prerouting DNAT 把 br-lan/zt* 的一切 53 端口查询 redirect 到本机
+# 新方案：prerouting DNAT 把 br-lan 的一切 53 端口查询 redirect 到本机
 # dnsmasq（设备无论把 DNS 配成什么都被强制走本机的 mosdns 分流链），
 # forward hook 直接 drop 853（DoT）。DoH(443) 无法 DNAT，见 README FAQ。
