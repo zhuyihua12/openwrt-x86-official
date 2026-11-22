@@ -100,15 +100,6 @@ fi
 )
 
 # ========================================
-# Pre-install ZeroTier LuCI App (removed from OpenWrt 25.12 luci feed)
-# ========================================
-mkdir -p package/custom
-if [ ! -d "package/custom/luci-app-zerotier" ]; then
-    echo "Cloning luci-app-zerotier (Ser9ei, 25.12-ready)..."
-    git clone --depth 1 https://github.com/Ser9ei/luci-app-zerotier.git package/custom/luci-app-zerotier
-fi
-
-# ========================================
 # Pre-install vlmcsd + LuCI app (removed from OpenWrt 25.12 feeds, take from ImmortalWrt)
 # ========================================
 if [ ! -d "package/custom/vlmcsd" ]; then

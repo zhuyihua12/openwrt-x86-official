@@ -107,41 +107,6 @@ uci set openclash.config.en_mode='fake-ip-tun'
 uci set openclash.config.delay_start='30'
 uci commit openclash
 
-# ============ ZeroTier 远程接入预置 ============
-uci set zerotier.@zerotier[0].enabled='1'
-# 删除包自带示例网络 earth——它会随服务启动自动加入陌生网络，纯属隐患
-uci -q delete zerotier.earth
-# ZT 虚拟网卡名是哈希随机值(如 ztonktpvpd)，无法预知，防火墙挂载只能用 zt* 通配；
-# proto none 逻辑接口不管理 IP（ZT 守护进程自管），仅作为防火墙分区的载体
-uci -q delete network.zerotier
-uci set network.zerotier='interface'
-uci set network.zerotier.proto='none'
-uci set network.zerotier.ifname='zt*'
-uci commit network
-# 将 ZeroTier 设为独立防火墙区：input 放行（可访问路由器）、forward 与 lan
-# 互通；zt→br-lan 方向的 NAT 由 /etc/firewall.zt-masq.nft 提供（见下）——
-# 内网设备的默认网关是主路由而非本机，回程包不认识 ZT 网段，不 NAT 则
-# "ping 通路由器却 ping 不通内网设备"（旁路由场景的固有不对称路由）
-uci -q del_list firewall.@zone[0].network='zerotier'
-uci -q delete firewall.zerotier
-uci set firewall.zerotier='zone'
-uci set firewall.zerotier.name='zerotier'
-uci set firewall.zerotier.network='zerotier'
-uci set firewall.zerotier.input='ACCEPT'
-uci set firewall.zerotier.output='ACCEPT'
-uci set firewall.zerotier.forward='ACCEPT'
-uci set firewall.zt_fwd_lan='forwarding'
-uci set firewall.zt_fwd_lan.src='zerotier'
-uci set firewall.zt_fwd_lan.dest='lan'
-uci set firewall.lan_fwd_zt='forwarding'
-uci set firewall.lan_fwd_zt.src='lan'
-uci set firewall.lan_fwd_zt.dest='zerotier'
-# nft include（fw4 把文件内容插进 table inet fw4 内部，片段只写到 chain 层；
-# 且必须写进 fw4 真正挂 hook 的 chain srcnat——自己新起链名是无 hook 死链）
-uci -q delete firewall.zt_nat_include
-uci set firewall.zt_nat_include='include'
-uci set firewall.zt_nat_include.type='nft'
-uci set firewall.zt_nat_include.path='/etc/firewall.zt-masq.nft'
 # DNS 透明劫持 + DoT 封锁（nft include；注意：链名不能叫 dnat——撞 nft
 # 关键字且 fw4 不预建 dnat 链，必须自建带 type nat hook prerouting 的链）
 uci -q delete firewall.dns_hijack

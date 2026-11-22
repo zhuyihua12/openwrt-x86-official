@@ -60,12 +60,6 @@ jobs:
             || { echo "❌ uci-defaults 缺 mosdns remote_dns 分流键"; exit 1; }
           grep -q "dhcp.lan.ignore='1'" files/etc/uci-defaults/zz-ipv6-mosdns \
             || { echo "❌ uci-defaults 缺 LAN DHCP 忽略键"; exit 1; }
-          grep -q "ifname='zt\*'" files/etc/uci-defaults/zz-ipv6-mosdns \
-            || { echo "❌ uci-defaults 缺 ZeroTier zt* 通配接口"; exit 1; }
-          grep -q "9993" files/etc/openclash/custom/openclash_custom_firewall_rules.sh \
-            || { echo "❌ OpenClash 定制脚本缺 ZeroTier 免劫持规则"; exit 1; }
-          grep -q 'masquerade' files/etc/firewall.zt-masq.nft \
-            || { echo "❌ 缺 ZeroTier→lan NAT nft 片段"; exit 1; }
           echo "✅ 覆盖层完整"
           cp -f ${{ github.workspace }}/scripts/diy.sh .
           bash diy.sh
@@ -247,7 +241,7 @@ jobs:
             - **DNS**: mosdns 前置分流（国内直连 / 代理域名走节点隧道，无 DNS 泄漏）；内置重写 `time.android.com → 203.107.6.88`
             - **OpenClash**: Meta 内核，已预置参数，导入节点即用
             - **IPv6**: v4+v6 地址/网关/DNS 全自动
-            - **dnsmasq-full** ✅ | **ZeroTier** ✅ | **KMS (vlmcsd)** ✅ | **中文 LuCI** ✅
+            - **dnsmasq-full** ✅ | **KMS (vlmcsd)** ✅ | **中文 LuCI** ✅
             > 使用文档见 README「旁路由接线」章节
           files: |
             ${{ env.WORK_DIR }}/bin/targets/x86/64/openwrt-x86-64-generic-squashfs-combined-efi.img.gz

@@ -38,9 +38,6 @@ for f in files/etc/uci-defaults/zz-ipv6-mosdns files/etc/firewall.user files/etc
 done
 grep -q "remote_dns='127.0.0.1:7874'" files/etc/uci-defaults/zz-ipv6-mosdns || { echo "❌ 缺 mosdns remote_dns 分流键"; exit 1; }
 grep -q "dhcp.lan.ignore='1'" files/etc/uci-defaults/zz-ipv6-mosdns || { echo "❌ 缺 LAN DHCP 忽略键"; exit 1; }
-grep -q "ifname='zt\*'" files/etc/uci-defaults/zz-ipv6-mosdns || { echo "❌ 缺 ZeroTier zt* 通配接口"; exit 1; }
-grep -q "9993" files/etc/openclash/custom/openclash_custom_firewall_rules.sh || { echo "❌ 缺 ZeroTier 免劫持规则"; exit 1; }
-grep -q 'masquerade' files/etc/firewall.zt-masq.nft || { echo "❌ 缺 ZeroTier NAT nft 片段"; exit 1; }
 cp -f "$PROJECT/scripts/diy.sh" .
 bash diy.sh
 echo "✅ 覆盖层完整"

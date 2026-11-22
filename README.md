@@ -30,7 +30,7 @@
 - ⚠️ **已知限制**：零泄漏设计下，**境外域名的订阅链接首次无法直接导入**（需一次性引导，见 [OpenClash 章节](#-openclash-三步上手)）；国内域名订阅可直接用
 - 🔄 **持续更新**：自动追踪 OpenWrt 官方最新稳定版，有新版本自动重新编译发布
 
-预装服务：OpenClash · mosdns 面板 · ZeroTier · KMS 激活(vlmcsd) · Web 终端(ttyd) · dnsmasq-full · htop/nano/curl 等实用工具。
+预装服务：OpenClash · mosdns 面板 · KMS 激活(vlmcsd) · Web 终端(ttyd) · dnsmasq-full · htop/nano/curl 等实用工具。
 
 ---
 
@@ -111,59 +111,6 @@
 
 ---
 
-## 🌙 ZeroTier 远程接入（人在外地，心在家里）
-
-出差路上想看家里的 NAS、给父母远程修路由器后台？ZeroTier 不需要公网 IP、不用端口转发，装好即用。**先看动画面板，再对照下面步骤做**：
-
-![ZeroTier 接入四步演示动画](docs/images/zerotier-guide.svg)
-
-### 准备：拿到你的网络 ID
-
-到 <https://my.zerotier.com> 注册（GitHub 账号可直接登）→ **CREATE A NETWORK** → 得到一个 **16 位网络 ID**（如 `8056c2e21c000001`），这就是"家庭频道号"，所有要互联的设备都加入它。
-
-### 第①步 · 路由器加入网络
-
-**服务 → ZeroTier → 配置** 页：
-
-1. 「全局设置」确认 **已启用**（最新固件默认已启用）
-2. 「网络配置」→ 右上 **添加** → 名称随意、**网络 ID** 填你的 16 位 ID → 保持"启用"和"允许托管 IP"勾选 → **保存并应用**
-
-### 第②步 · 控制台授权（最容易漏的一步！）
-
-回 `my.zerotier.com` → 你的网络 → **Members** 列表里出现一个新节点（名字是你的路由器，状态 UNKNOWN）：
-
-1. 勾选该行的 **Auth**（授权）
-2. 建议点该行右侧 ✎ 展开，在 **Managed IPs** 给它填一个固定 IP，如 `10.99.0.7`（后面访问就用它）
-3. **拉到底点 SAVE** —— 不点 SAVE 等于没授权
-
-> [!WARNING]
-> ZeroTier 网络默认分配的网段可能撞车。**别让 ZeroTier 网段和家里 `192.168.10.0/24` 重叠**——在控制台 **IPv4 Auto-Assign → Manually Assign Pool** 里设成 `10.99.0.0/24` 这类不冲突的段。
-
-### 第③步 · 你的手机 / 笔记本加入
-
-手机装 **ZeroTier One**（App Store / 各应用市场搜 ZeroTier），笔记本装官方客户端：
-
-1. 填同一个 16 位网络 ID → **Join**
-2. **回到网页控制台，把这台新设备也勾 Auth + SAVE**（每台设备都要单独授权）
-
-### 第④步 · 开始用
-
-设备状态变 **OK / READY** 后，在外地任意网络下：
-
-- 访问家里设备：直接输 `10.99.0.x`（ZeroTier 分配的 IP）
-- 访问旁路由后台 / OpenClash 面板：`http://10.99.0.7`（第②步填的那个）
-- 访问家里其它设备：旁路由已把 ZeroTier 流量接入 lan 转发，`ping 192.168.10.x` 同样通
-
-### 本固件已替你做好的（最新固件内置，零手动配置）
-
-- **防火墙**：ZeroTier 独立防火墙区——随机网卡名（`zt*`）自动放行，远程可访问路由器与整个内网
-- **NAT 回程**：ZeroTier→内网流量自动伪装成旁路由 IP，内网设备无需知道 ZeroTier 网段的存在（旧版"能连路由器连不上设备"的问题已根治）
-- **与 OpenClash 和平共处**：自动给 UDP 9993（ZeroTier 打洞端口）加免劫持白名单，透明代理开着也能打洞直连，不掉线不绕路
-- 出厂自带的示例网络 `earth`（会偷偷自动加入陌生网络）已移除
-
-> 若你用的还是旧版固件，见下方「常见问题」的一次性修复命令。
-
----
 
 ## 🧭 DNS 分流与防泄漏
 
@@ -178,7 +125,7 @@ dnsmasq (:53) ──全部查询──▶ mosdns (:5335)
 
 | 防线 | 机制 |
 |------|------|
-| DNS 不泄漏 | 国外/未识别域名解析只走 mihomo 隧道（宁可不解析也不泄漏）；**DNS 透明劫持**——无论设备把 DNS 配成什么（包括 223.5.5.5、8.8.8.8），局域网/ZeroTier 的一切 53 端口查询都被强制改道路由器解析链（v4+v6）；DoT(853) 直接阻断 |
+| DNS 不泄漏 | 国外/未识别域名解析只走 mihomo 隧道（宁可不解析也不泄漏）；**DNS 透明劫持**——无论设备把 DNS 配成什么（包括 223.5.5.5、8.8.8.8），局域网的一切 53 端口查询都被强制改道路由器解析链（v4+v6）；DoT(853) 直接阻断 |
 | IP 不泄漏 | OpenClash 透明代理接管流量；代理域名不发 AAAA（Fake-IP v4 栈），杜绝 IPv6 直连泄漏 |
 | 无代理语义 | OpenClash 未启动时：国内网站照常，国外域名解析失败——这是防泄漏的预期行为，不是故障 |
 
@@ -187,7 +134,6 @@ dnsmasq (:53) ──全部查询──▶ mosdns (:5335)
 - **DNS 分流面板**：服务 → mosdns —— 广告屏蔽、黑白名单、Geo 数据更新都在这
 - **DNS 重写**：固件内置 `time.android.com → 203.107.6.88`（Android 时间同步免翻墙）。加自己的规则：mosdns 面板「规则管理 → Hosts」，每行 `域名 IP`（域名在前）
 - **KMS 激活**：预装 vlmcsd，局域网设备 Windows/Office 自动激活，无需配置
-- **ZeroTier**：服务 → ZeroTier，四步远程回家（详见上文「ZeroTier 远程接入」章节）
 
 ---
 
@@ -226,16 +172,6 @@ ln -sf /etc/openclash/core/mihomo /etc/openclash/core/clash_meta
 uci set openclash.config.lan_interface_name='br-lan' && uci commit openclash
 ```
 
-**Q：ZeroTier 能访问旁路由本身，但 ping / 访问不了局域网其它设备？（b173 之前的版本都有此问题）**
-旁路由场景的固有不对称路由：你的包经旁路由进了内网，但内网设备的回程走主路由，主路由不认识 ZeroTier 网段直接丢包。新版固件已自动给 ZeroTier→内网流量做 NAT（内网设备只看到旁路由的 IP，无需任何路由配置）。老版本 SSH 一次性修复：
-```sh
-printf '%s\n' 'chain srcnat {' '    iifname "zt*" oifname "br-lan" counter masquerade' '}' > /etc/firewall.zt-masq.nft
-uci set firewall.zt_nat_include=include
-uci set firewall.zt_nat_include.type=nft
-uci set firewall.zt_nat_include.path=/etc/firewall.zt-masq.nft
-uci commit firewall && /etc/init.d/firewall restart && conntrack -F
-```
-（注意：nft include 片段必须写进 fw4 真正挂 hook 的 `chain srcnat`，自己新起 `chain postrouting` 是无 hook 死链，规则永远不会执行。）
 
 **Q：更新 GeoIP / 内核 / 广告规则失败？**
 先确认 OpenClash 已导入节点并启动（更新需要代理出境）；再确认设备流量已指向旁路由（第 4 步）。
