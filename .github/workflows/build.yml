@@ -114,6 +114,14 @@ jobs:
           else
             echo "CONFIG_TARGET_ROOTFS_PARTSIZE=512" >> .config
           fi
+          # 项目规矩（2026-11-23 定）: 只编译 squashfs 版——ext4 无 overlay/rootfs_data，
+          # LuCI 按设计隐藏"恢复出厂设置"且无法在线 sysupgrade；defconfig 默认会开 ext4，必须显式关掉
+          if grep -q '^CONFIG_TARGET_ROOTFS_EXT4FS=y' .config; then
+            sed -i 's/^CONFIG_TARGET_ROOTFS_EXT4FS=y/# CONFIG_TARGET_ROOTFS_EXT4FS is not set/' .config
+          else
+            echo "# CONFIG_TARGET_ROOTFS_EXT4FS is not set" >> .config
+          fi
+          grep -q '^CONFIG_TARGET_ROOTFS_SQUASHFS=y' .config || echo "CONFIG_TARGET_ROOTFS_SQUASHFS=y" >> .config
           # 确保 feeds 开启
           for feed in CONFIG_FEED_packages CONFIG_FEED_luci CONFIG_FEED_routing CONFIG_FEED_telephony; do
             if ! grep -q "^${feed}=y" .config; then
@@ -161,6 +169,8 @@ jobs:
           grep '^CONFIG_TARGET_ROOTFS_PARTSIZE=' .config || { echo "❌ PARTSIZE 行丢失"; exit 1; }
           grep '^CONFIG_LUCI_LANG_zh_Hans=y' .config || { echo "❌ 中文语言开关未生效"; exit 1; }
           grep '^CONFIG_PACKAGE_luci-i18n-base-zh-cn=y' .config || { echo "❌ zh-cn i18n 包未被联动启用"; exit 1; }
+          grep '^CONFIG_TARGET_ROOTFS_SQUASHFS=y' .config || { echo "❌ squashfs 未启用"; exit 1; }
+          if grep -q '^CONFIG_TARGET_ROOTFS_EXT4FS=y' .config; then echo "❌ ext4 未关闭（规矩：只编译 squashfs）"; exit 1; fi
 
       - name: 📥 预下载编译依赖
         run: |
@@ -178,6 +188,10 @@ jobs:
         run: |
           echo "=== 编译产物列表 ==="
           ls -lh $WORK_DIR/bin/targets/x86/64/ || echo "目录不存在"
+          echo "=== 镜像格式规矩断言 ==="
+          ls $WORK_DIR/bin/targets/x86/64/openwrt-x86-64-generic-squashfs-combined-efi.img.gz >/dev/null || { echo "❌ squashfs-combined-efi 镜像不存在"; exit 1; }
+          if ls $WORK_DIR/bin/targets/x86/64/openwrt-x86-64-generic-ext4-combined* >/dev/null 2>&1; then echo "❌ 竟然产出了 ext4 镜像（规矩：只编译 squashfs）"; exit 1; fi
+          echo "✅ 仅 squashfs 版，规矩守住"
           echo "=== manifest 内容断言 ==="
           FOUND=0
           for m in $WORK_DIR/bin/targets/x86/64/*.manifest; do
@@ -199,7 +213,7 @@ jobs:
       - name: 📀 转换为 ESXi 兼容 VMDK
         run: |
           cd $WORK_DIR/bin/targets/x86/64/
-          IMG_FILE="openwrt-x86-64-generic-ext4-combined-efi.img"
+          IMG_FILE="openwrt-x86-64-generic-squashfs-combined-efi.img"
           if [ ! -f "$IMG_FILE" ] && [ -f "${IMG_FILE}.gz" ]; then
             gunzip -k "${IMG_FILE}.gz"
           fi
@@ -237,7 +251,6 @@ jobs:
             > 使用文档见 README「旁路由接线」章节
           files: |
             ${{ env.WORK_DIR }}/bin/targets/x86/64/openwrt-x86-64-generic-squashfs-combined-efi.img.gz
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/openwrt-x86-64-generic-ext4-combined-efi.img.gz
-            ${{ env.WORK_DIR }}/bin/targets/x86/64/openwrt-x86-64-generic-ext4-combined-efi.vmdk
+            ${{ env.WORK_DIR }}/bin/targets/x86/64/openwrt-x86-64-generic-squashfs-combined-efi.vmdk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

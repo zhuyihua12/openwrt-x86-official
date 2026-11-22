@@ -40,9 +40,11 @@
 
 | 文件 | 用在哪 |
 |------|--------|
-| `...ext4-combined-efi.img.gz` | **最常用**：物理机写 U 盘/SSD，或导入 PVE / ESXi / Unraid / VirtualBox |
-| `...ext4-combined-efi.vmdk` | VMware Workstation / ESXi 直接挂载单文件 |
-| `...squashfs-combined-efi.img.gz` | 需要 extroot 扩容的场景 |
+| `...squashfs-combined-efi.img.gz` | **唯一推荐**：物理机写 U 盘/SSD，或导入 PVE / ESXi / Unraid / VirtualBox |
+| `...squashfs-combined-efi.vmdk` | VMware Workstation / ESXi 直接挂载单文件 |
+
+> 💡 本项目只编译 **squashfs** 版：带 overlay 配置层，LuCI 里才有「恢复出厂设置」按钮，
+> 且后续升级可在 LuCI 里 sysupgrade 原地保留配置（ext4 版两者都做不到）。
 
 > 💡 写入磁盘/导入虚拟机属于通用操作（任何写镜像工具均可），不在此赘述。
 
