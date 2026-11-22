@@ -1,3 +1,4 @@
 chain srcnat {
     iifname "zt*" oifname "br-lan" counter masquerade comment "zerotier-to-lan-nat"
+    iifname "br-lan" oifname "zt*" counter masquerade comment "lan-to-zerotier-nat"
 }
