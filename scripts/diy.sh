@@ -102,6 +102,7 @@ fi
 # ========================================
 # Pre-install vlmcsd + LuCI app (removed from OpenWrt 25.12 feeds, take from ImmortalWrt)
 # ========================================
+mkdir -p package/custom
 if [ ! -d "package/custom/vlmcsd" ]; then
     echo "Fetching vlmcsd + luci-app-vlmcsd from ImmortalWrt..."
     git clone --depth 1 --filter=blob:none --sparse https://github.com/immortalwrt/packages.git /tmp/im-pkgs
