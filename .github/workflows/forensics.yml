@@ -34,6 +34,7 @@ jobs:
           chk "openclash 主脚本"     '[ -f usr/bin/openclash ] || [ -f usr/share/openclash/openclash.sh ]'
           chk "中文语言包(lmo)"      'find . -name "*.lmo" > /tmp/lmo.txt 2>/dev/null; grep -qiE "zh[-_]" /tmp/lmo.txt'
           chk "DNS 透明劫持 nft"     'grep -q dns-hijack-to-self etc/firewall.dns-hijack.nft'
+          chk "固件内已无 ZeroTier"  '! ls usr/sbin/zerotier-one usr/bin/zerotier-one >/dev/null 2>&1'
           chk "uci-defaults 装配"    'grep -q "remote_dns=.127.0.0.1:7874" etc/uci-defaults/zz-ipv6-mosdns && grep -q "delay_start=.30" etc/uci-defaults/zz-ipv6-mosdns && grep -q "fake-ip-tun" etc/uci-defaults/zz-ipv6-mosdns'
           chk "LAN DHCP 忽略"        'grep -q "dhcp.lan.ignore" etc/uci-defaults/zz-ipv6-mosdns'
           chk "无 ext4 残留(本应为空)" '! test -f ../dl/openwrt-x86-64-generic-ext4-combined-efi.img'
