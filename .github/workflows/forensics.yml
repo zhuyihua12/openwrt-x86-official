@@ -33,7 +33,7 @@ jobs:
           chk "mosdns 二进制"        '[ -f usr/bin/mosdns ]'
           chk "zerotier 守护"        'ls usr/sbin/zerotier-one* >/dev/null || ls usr/bin/zerotier-one* >/dev/null'
           chk "openclash 主脚本"     '[ -f usr/bin/openclash ] || [ -f usr/share/openclash/openclash.sh ]'
-          echo "--- i18n 文件诊断 ---"; find . -path '*i18n*' | head -10
+          echo "--- i18n 文件诊断 ---"; (find . -path '*i18n*' 2>/dev/null | head -10 || true)
           chk "中文语言包(lmo)"      'find . -name "*.lmo" | grep -qiE "zh[-_]"'
           chk "ZT 双向 NAT 片段"     'grep -q zerotier-to-lan-nat etc/firewall.zt-masq.nft && grep -q lan-to-zerotier-nat etc/firewall.zt-masq.nft'
           chk "DNS 透明劫持 nft"     'grep -q dns-hijack-to-self etc/firewall.dns-hijack.nft'
